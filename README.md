@@ -38,17 +38,17 @@ formatted
 
 #### Typical routine
 
-First, you create your patches somewhere:
+First, you create your patches somewhere within your Git project **foo**:
 
-1. `mkdir /home/you/foo`
+1. `mkdir -p /home/you/foo/patches`
 2. `git-format-pkg-patch -f TAG`
 
 Where `TAG` is your tag in Git against which you are creating your set of patches.
 
-Second (version A), you go to your OBS project and update the patches with it:
+Second (version A), assuming `/home/you/foo/patches` is accessible, so you go to your OBS project and update the patches with it:
 
 1. `cd /home/you/obs/project`
-2. `git-format-pkg-patch -u /home/you/foo`
+2. `git-format-pkg-patch -u /home/you/foo/patches`
 
 It will report you what was added/changed/removed and will generate a text file
 `patches.changes.txt` in the same directory, which you can reuse to include its content
@@ -56,7 +56,7 @@ into `.changes` log of the package.
 
 Second (version B), you do the same as above, except add option `-c` during the next step like this:
 
-`git-format-pkg-patch -u /home/you/foo -c`
+`git-format-pkg-patch -u /home/you/foo/patches -c`
 
 This will do the same as above, but will _actually_ update the contents of those files.
 
