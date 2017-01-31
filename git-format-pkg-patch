@@ -1,0 +1,212 @@
+#!/usr/bin/python
+#
+# Copyright (c) 2017, SUSE Linux Products GmbH
+#
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without modification,
+# are permitted provided that the following conditions are met:
+#
+# Redistributions of source code must retain the above copyright notice,
+# this list of conditions and the following disclaimer. Redistributions in binary
+# form must reproduce the above copyright notice, this list of conditions and the
+# following disclaimer in the documentation and/or other materials provided with
+# the distribution.
+#
+# Neither the name of the SUSE Linux Products GmbH nor the names of its contributors
+# may be used to endorse or promote products derived from this software without
+# specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+# IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+# INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+# OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+# OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+# OF THE POSSIBILITY OF SUCH DAMAGE.
+
+'''
+ Author: Bo Maryniuk <bo@suse.de>
+
+  This tool helps to:
+  1. Format patches from Git the way it has a minimal impact on
+     the changes in the future
+ 
+  2. Update patches to the current package source
+
+  3. Detect content differences, if the filename is still the same
+
+  4. Generate include message for .changes logfile
+'''
+
+import os
+import sys
+import re
+import argparse
+import shutil
+
+
+def remove_order(filename):
+    '''
+    Remove order of the patch filename.
+
+    Git formats patches: XXXX-filename.patch
+    This function removes the "XXXX-" part, if any.
+    '''
+    ordnum = os.path.basename(filename).split('-')[0]
+    if ordnum and not re.sub('[0-9]', '', ordnum):
+        filename = os.path.join(os.path.dirname(filename), filename.split('-', 1)[-1]).lower()
+
+    return filename
+
+
+def remove_order_from_subject(src_file, dst_file):
+    '''
+    Remove subject inside the patch.
+
+    Git format patches inside with the following subject format:
+    Subject: [PATCH X/Y] .........
+
+    This function removes [PATCH X/Y] part, if any.
+    '''
+
+    if os.path.exists(dst_file):
+        raise IOError('Something went wrong: file {0} exists'.format(dst_file))
+
+    dst = open(dst_file, 'w')
+    for fline in open(src_file).read().split(os.linesep):
+        fline_tk = re.split('\s+\[PATCH \d+/\d+\]\s+', fline)
+        if len(fline_tk) == 2 and fline_tk[0] == 'Subject:':
+            fline = ' '.join(fline_tk)
+        dst.write('{0}\n'.format(fline))
+    dst.close()
+
+
+def git_format_patch(tag):
+    '''
+    Formats patches from the given tag.
+    '''
+    patches = 0
+    for patch in os.popen('git format-patch {0}'.format(tag)).read().split(os.linesep):
+        if patch.split('.')[-1] == 'patch':
+            patches += 1
+
+    print "Patches fetched: {0}".format(patches)
+
+
+def get_diff_contents(data):
+    '''
+    Get diff contents only
+    '''
+    data = '--'.join(data.split("--")[:-1])
+    contents = []
+    for chunk in re.split('@@.*?@@\n', data)[1:]:
+        contents.append(chunk.split('diff --git')[0])
+    return contents
+
+
+def do_create_patches(args):
+    '''
+    Create and reformat patches for the package.
+    '''
+    current_dir = os.path.abspath('.')
+    if os.listdir(current_dir):
+        print "Error: this directory has to be empty!"
+        sys.exit(1)
+
+    git_format_patch(args.format)
+
+    patches = 0
+    for fname in os.listdir(current_dir):
+        if fname.split('.')[-1] == 'patch':
+            print "Preparing", fname
+            remove_order_from_subject(fname, remove_order(fname))
+            os.unlink(fname)
+            patches += 1
+    print
+    print "Re-formatted {0} patch{1}".format(patches, patches > 1  and 'es' or '')
+
+
+def do_update_patches(args):
+    '''
+    Update patches on the target package source.
+    '''
+    print "Updating packages from {0} directory".format(args.update)
+    added = []
+    removed = []
+    changed = []
+
+    # Gather current patches
+    current_patches = {}
+    for fname in os.listdir(os.path.abspath(".")):
+        if fname.endswith('.patch'):
+            current_patches[os.path.basename(fname)] = True
+
+    for fname in os.listdir(args.update):
+        if fname.endswith('.patch'):
+            fname = os.path.join(args.update, fname)
+            if os.path.isfile(fname):
+                current_patches[os.path.basename(fname)] = False
+                n_fname = os.path.basename(fname)
+                if not os.path.exists(n_fname):
+                    print "Adding {0} patch".format(fname)
+                    shutil.copyfile(fname, os.path.join(os.path.abspath("."), n_fname))
+                    added.append(n_fname)
+                else:
+                    if get_diff_contents(open(fname).read()) != get_diff_contents(open(n_fname).read()):
+                        if args.changed:
+                            print "Replacing {0} patch".format(n_fname)
+                            os.unlink(n_fname)
+                            shutil.copyfile(fname, os.path.join(os.path.abspath("."), n_fname))
+                            changed.append(n_fname)
+                        else:
+                            print "WARNING: Patches {0} and {1} are different!".format(fname, n_fname)
+
+
+    for fname in sorted([patch_name for patch_name, is_dead in current_patches.items() if is_dead]):
+        print "Removing {0} patch".format(fname)
+        os.unlink(fname)
+        removed.append(fname)
+
+    # Generate an include for spec changes
+    changes = open("patches.changes.txt", "w")
+    for title, data in [('Changed', changed), ('Added', added), ('Removed', removed),]:
+        if not data: continue
+        print >> changes, "- {0}:".format(title)
+        for fname in sorted(data):
+            print >> changes, " * {0}".format(fname)
+        print >> changes
+
+    if not removed and not added and not changes:
+        print "No files has been changed"
+
+    changes.close()
+
+
+def main():
+    '''
+    Main app.
+    '''
+    parser = argparse.ArgumentParser(description='Git patch formatter for RPM packages')
+    parser.add_argument('-u','--update', action='store', const=None,
+                        help='update current patches with the destination path')
+    parser.add_argument('-f','--format', action='store', const=None,
+                        help='specify tag or range of commits for patches to be formatted')
+    parser.add_argument('-c','--changed', action='store_const', const=True,
+                        help='update also changed files with the content')
+    args = parser.parse_args()
+
+    if args.update and not args.format:
+        do_update_patches(args)
+    elif args.format and not args.update:
+        do_create_patches(args)
+    else:
+        parser.print_help()
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()
