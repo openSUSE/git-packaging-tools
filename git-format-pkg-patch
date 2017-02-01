@@ -103,7 +103,7 @@ def get_diff_contents(data):
     '''
     data = '--'.join(data.split("--")[:-1])
     contents = []
-    for chunk in re.split('@@.*?@@\n', data)[1:]:
+    for chunk in re.split(r'@@.*?@@\n', data)[1:]:
         contents.append(chunk.split('diff --git')[0])
     return contents
 
@@ -165,7 +165,6 @@ def do_update_patches(args):
                         else:
                             print "WARNING: Patches {0} and {1} are different!".format(fname, n_fname)
 
-
     for fname in sorted([patch_name for patch_name, is_dead in current_patches.items() if is_dead]):
         print "Removing {0} patch".format(fname)
         os.unlink(fname)
@@ -191,11 +190,11 @@ def main():
     Main app.
     '''
     parser = argparse.ArgumentParser(description='Git patch formatter for RPM packages')
-    parser.add_argument('-u','--update', action='store', const=None,
+    parser.add_argument('-u', '--update', action='store', const=None,
                         help='update current patches with the destination path')
-    parser.add_argument('-f','--format', action='store', const=None,
+    parser.add_argument('-f', '--format', action='store', const=None,
                         help='specify tag or range of commits for patches to be formatted')
-    parser.add_argument('-c','--changed', action='store_const', const=True,
+    parser.add_argument('-c', '--changed', action='store_const', const=True,
                         help='update also changed files with the content')
     args = parser.parse_args()
 
