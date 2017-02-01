@@ -92,8 +92,8 @@ index 0000000000..cb2a5974ff
         Test diff content extracted properly.
         :return:
         '''
-        sample_content_a = [' LimitNOFILE=16384\n Type=simple\n ExecStart=/usr/bin/salt-master'
-                           '\n+TasksMax=infinity\n\n [Install]\n WantedBy=multi-user.target\n']
+        sample_content_a = [' LimitNOFILE=16384\n Type=simple\n ExecStart=/usr/bin/salt-master\n'
+                            '+TasksMax=infinity\n\n [Install]\n WantedBy=multi-user.target\n']
         assert get_diff_contents(self.diff_a) == sample_content_a
 
         sample_content_b = [' After=network.target\n\n [Service]\n-Type=notify\n-NotifyAccess=all'
