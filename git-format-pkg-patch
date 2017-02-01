@@ -82,7 +82,7 @@ def remove_order_from_subject(src_file, dst_file):
     for fline in open(src_file).read().split(os.linesep):
         fline_tk = re.split(r'\s+\[PATCH \d+/\d+\]\s+', fline)
         if len(fline_tk) == 2 and fline_tk[0] == 'Subject:':
-            fline = ' '.join(fline_tk)
+            fline = ' [PATCH] '.join(fline_tk)
         dst.write('{0}\n'.format(fline))
     dst.close()
 
