@@ -49,6 +49,10 @@ import argparse
 import shutil
 
 
+ORDERING_FILE = 'patches.orders.txt'
+CHANGES_FILE = 'patches.changes.txt'
+
+
 def remove_order(filename):
     '''
     Remove order of the patch filename.
@@ -57,10 +61,13 @@ def remove_order(filename):
     This function removes the "XXXX-" part, if any.
     '''
     ordnum = os.path.basename(filename).split('-')[0]
-    if ordnum and not re.sub('[0-9]', '', ordnum):
+    if ordnum and not re.sub(r'[0-9]', '', ordnum):
         filename = os.path.join(os.path.dirname(filename), filename.split('-', 1)[-1]).lower()
+        ordnum = int(ordnum)
+    else:
+        ordnum = None
 
-    return filename
+    return ordnum, filename
 
 
 def remove_order_from_subject(src_file, dst_file, use_unique=False):
@@ -153,13 +160,34 @@ def do_create_patches(args):
             print "Error: can't find a single patch in {0} to work with!".format(current_dir)
             sys.exit(1)
 
+    ord_fh = open(args.ordering or ORDERING_FILE, 'w')
+    ord_fh.write('#\n#\n# This is pre-generated snippets of patch ordering\n#\n')
+    ord_patches_p = []
+
     patches = 0
     for fname in os.listdir(current_dir):
         if fname.split('.')[-1] == 'patch':
             print "Preparing", fname
-            remove_order_from_subject(fname, remove_order(fname), use_unique=args.increment)
+            order, nfname = remove_order(fname)
+            if args.index is not None:
+                order += args.index
+            remove_order_from_subject(fname, nfname, use_unique=args.increment)
             os.unlink(fname)
+
+            ord_fh.write('#Patch{num}:\t\t{fname}\n'.format(num=order, fname=nfname))
+            ord_patches_p.append(order)
+
             patches += 1
+
+    if ord_patches_p:
+        ord_fh.write('#\n#\n# Patch processing inclusion:\n')
+        for order in ord_patches_p:
+            ord_fh.write('#%patch{num} -p1\n'.format(num=order))
+    else:
+        ord_fh.write('# Nothing here, folks... :-(\n')
+
+    ord_fh.close()
+
     print
     print "Re-formatted {0} patch{1}".format(patches, patches > 1 and 'es' or '')
 
@@ -205,7 +233,7 @@ def do_update_patches(args):
         removed.append(fname)
 
     # Generate an include for spec changes
-    changes = open("patches.changes.txt", "w")
+    changes = open(CHANGES_FILE, "w")
     for title, data in [('Changed', changed), ('Added', added), ('Removed', removed)]:
         if not data: continue
         print >> changes, "- {0}:".format(title)
@@ -229,6 +257,10 @@ def main():
                         help='update current patches with the destination path')
     parser.add_argument('-f', '--format', action='store', const=None,
                         help='specify tag or range of commits for patches to be formatted')
+    parser.add_argument('-o', '--ordering', action='store', const=None,
+                        help='specify ordering spec inclusion file. Default: {0}'.format(ORDERING_FILE))
+    parser.add_argument('-x', '--index', action='store', const=None,
+                        help='specify start ordering index. Default: 0')
     parser.add_argument('-i', '--increment', action='store_const', const=True,
                         help='use increments for unique names when patch commits repeated')
     parser.add_argument('-c', '--changed', action='store_const', const=True,
@@ -238,7 +270,14 @@ def main():
     parser.add_argument('-v', '--version', action='store_const', const=True,
                         help='show version')
     args = parser.parse_args()
+
     try:
+        if args.index:
+            try:
+                args.index = int(args.index)
+            except ValueError as ex:
+                raise Exception('Value "{0}" should be a digit'.format(args.index))
+
         if args.version:
             print "Version: {0}".format(VERSION)
         elif args.update and not args.format:
