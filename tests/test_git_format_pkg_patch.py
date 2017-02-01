@@ -1,4 +1,4 @@
-from gfp import get_diff_contents
+from gfp import get_diff_contents, unique
 
 
 class TestUtils(object):
@@ -105,3 +105,23 @@ index 0000000000..cb2a5974ff
                             '+============================\n+\n+Version 2016.11.3 is a bugfix release '
                             'for :ref:`2016.11.0 <release-2016-11-0>`.\n']
         assert get_diff_contents(self.diff_c) == sample_content_c
+
+    def test_make_unique_filename(self):
+        '''
+        Test unique filename
+        :return:
+        '''
+        fname = 'file.patch'
+        for iter in xrange(10):
+            fname = unique(fname)
+            assert fname == 'file-{0}.patch'.format(iter + 1)
+
+        fname = 'file-something.patch'
+        for iter in xrange(10):
+            fname = unique(fname)
+            assert fname == 'file-something-{0}.patch'.format(iter + 1)
+
+        fname = 'some-archive-here.tar.gz'
+        for iter in xrange(10):
+            fname = unique(fname)
+            assert fname == 'some-archive-here-{0}.tar.gz'.format(iter + 1)
