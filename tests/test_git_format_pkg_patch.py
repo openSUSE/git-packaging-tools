@@ -61,12 +61,38 @@ index c3e67d510c..9be2cb8ee6 100644
 2.11.0
     """
 
+    diff_c = """
+From 0943872fab17ae5400acc5b66cdb338193291e9e Mon Sep 17 00:00:00 2001
+From: Nicole Thomas <nicole@saltstack.com>
+Date: Mon, 30 Jan 2017 16:43:40 -0700
+Subject: [PATCH 350/351] Add 2016.11.3 release notes file (#39044)
+
+---
+ doc/topics/releases/2016.11.3.rst | 5 +++++
+ 1 file changed, 5 insertions(+)
+ create mode 100644 doc/topics/releases/2016.11.3.rst
+
+diff --git a/doc/topics/releases/2016.11.3.rst b/doc/topics/releases/2016.11.3.rst
+new file mode 100644
+index 0000000000..cb2a5974ff
+--- /dev/null
++++ b/doc/topics/releases/2016.11.3.rst
+@@ -0,0 +1,5 @@
++============================
++Salt 2016.11.3 Release Notes
++============================
++
++Version 2016.11.3 is a bugfix release for :ref:`2016.11.0 <release-2016-11-0>`.
+--
+2.11.0
+    """
+
     def test_get_diff_contents(self):
         '''
         Test diff content extracted properly.
         :return:
         '''
-        sample_content_a = [' LimitNOFILE=16384\n Type=simple\n ExecStart=/usr/bin/salt-master' \
+        sample_content_a = [' LimitNOFILE=16384\n Type=simple\n ExecStart=/usr/bin/salt-master'
                            '\n+TasksMax=infinity\n\n [Install]\n WantedBy=multi-user.target\n']
         assert get_diff_contents(self.diff_a) == sample_content_a
 
@@ -74,3 +100,8 @@ index c3e67d510c..9be2cb8ee6 100644
                             '\n+User=salt\n+Type=simple\n LimitNOFILE=8192\n ExecStart=/usr/bin/salt-api'
                             '\n TimeoutStopSec=3\n']
         assert get_diff_contents(self.diff_b) == sample_content_b
+
+        sample_content_c = ['+============================\n+Salt 2016.11.3 Release Notes\n'
+                            '+============================\n+\n+Version 2016.11.3 is a bugfix release '
+                            'for :ref:`2016.11.0 <release-2016-11-0>`.\n']
+        assert get_diff_contents(self.diff_c) == sample_content_c
