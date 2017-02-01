@@ -63,7 +63,7 @@ index c3e67d510c..9be2cb8ee6 100644
 
     diff_c = """
 From 0943872fab17ae5400acc5b66cdb338193291e9e Mon Sep 17 00:00:00 2001
-From: Nicole Thomas <nicole@saltstack.com>
+From: Test <info@saltstack.com>
 Date: Mon, 30 Jan 2017 16:43:40 -0700
 Subject: [PATCH 350/351] Add 2016.11.3 release notes file (#39044)
 
