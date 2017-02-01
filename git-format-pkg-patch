@@ -70,7 +70,9 @@ def remove_order_from_subject(src_file, dst_file):
     Git format patches inside with the following subject format:
     Subject: [PATCH X/Y] .........
 
-    This function removes [PATCH X/Y] part, if any.
+    This function removes [PATCH X/Y] part, if any. In Git format-patches one can
+    add "-n" flag, so then subject won't have these numbers, but just "[PATCH]".
+    In this case we leave it out.
     '''
 
     if os.path.exists(dst_file):
