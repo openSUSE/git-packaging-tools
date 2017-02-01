@@ -200,6 +200,7 @@ def main():
     '''
     Main app.
     '''
+    VERSION = '0.1'
     parser = argparse.ArgumentParser(description='Git patch formatter for RPM packages')
     parser.add_argument('-u', '--update', action='store', const=None,
                         help='update current patches with the destination path')
@@ -209,9 +210,12 @@ def main():
                         help='update also changed files with the content')
     parser.add_argument('-e', '--existing', action='store_const', const=True,
                         help='work with already formatted patches from Git')
+    parser.add_argument('-v', '--version', action='store_const', const=True,
+                        help='show version')
     args = parser.parse_args()
-
-    if args.update and not args.format:
+    if args.version:
+        print "Version: {0}".format(VERSION)
+    elif args.update and not args.format:
         do_update_patches(args)
     elif (args.format and not args.update) or args.existing:
         do_create_patches(args)
