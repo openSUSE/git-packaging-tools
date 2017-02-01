@@ -101,7 +101,7 @@ def git_format_patch(tag):
 
 def get_diff_contents(data):
     '''
-    Get diff contents only
+    Get diff contents only.
     '''
     data = '--'.join(data.split("--")[:-1])
     contents = []
