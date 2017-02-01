@@ -103,10 +103,13 @@ def get_diff_contents(data):
     '''
     Get diff contents only.
     '''
+    # Yes, I know about library https://github.com/cscorley/whatthepatch
+    # But for now we go ultra-primitive to keep no deps
     data = '--'.join(data.split("--")[:-1])
     contents = []
     for chunk in re.split(r'@@.*?@@\n', data)[1:]:
         contents.append(chunk.split('diff --git')[0])
+
     return contents
 
 
