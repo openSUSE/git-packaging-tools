@@ -216,7 +216,6 @@ def main():
     elif (args.format and not args.update) or args.existing:
         do_create_patches(args)
     else:
-        print args.existing
         parser.print_help()
         sys.exit(1)
 
