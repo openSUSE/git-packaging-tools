@@ -138,7 +138,7 @@ def do_create_patches(args):
             os.unlink(fname)
             patches += 1
     print
-    print "Re-formatted {0} patch{1}".format(patches, patches > 1  and 'es' or '')
+    print "Re-formatted {0} patch{1}".format(patches, patches > 1 and 'es' or '')
 
 
 def do_update_patches(args):
