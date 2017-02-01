@@ -115,11 +115,17 @@ def do_create_patches(args):
     Create and reformat patches for the package.
     '''
     current_dir = os.path.abspath('.')
-    if os.listdir(current_dir):
-        print "Error: this directory has to be empty!"
-        sys.exit(1)
 
-    git_format_patch(args.format)
+    if not args.existing:
+        if os.listdir(current_dir):
+            print "Error: this directory has to be empty!"
+            sys.exit(1)
+
+        git_format_patch(args.format)
+    else:
+        if not [fname for fname in os.listdir(current_dir) if fname.endswith('.patch')]:
+            print "Error: can't find a single patch in {0} to work with!".format(current_dir)
+            sys.exit(1)
 
     patches = 0
     for fname in os.listdir(current_dir):
@@ -198,13 +204,16 @@ def main():
                         help='specify tag or range of commits for patches to be formatted')
     parser.add_argument('-c', '--changed', action='store_const', const=True,
                         help='update also changed files with the content')
+    parser.add_argument('-e', '--existing', action='store_const', const=True,
+                        help='work with already formatted patches from Git')
     args = parser.parse_args()
 
     if args.update and not args.format:
         do_update_patches(args)
-    elif args.format and not args.update:
+    elif (args.format and not args.update) or args.existing:
         do_create_patches(args)
     else:
+        print args.existing
         parser.print_help()
         sys.exit(1)
 
