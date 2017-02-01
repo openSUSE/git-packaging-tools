@@ -22,18 +22,19 @@ When updating, you can add an option `-c` that will not just tell you which
 patch has been chaned, but also refresh it for you.
 
 ```
-usage: git-format-pkg-patch [-h] [-u UPDATE] [-f FORMAT] [-c]
+usage: git-format-pkg-patch [-h] [-u UPDATE] [-f FORMAT] [-c] [-e]
 
 Git patch formatter for RPM packages
 
 optional arguments:
 -h, --help            show this help message and exit
 -u UPDATE, --update UPDATE
-update current patches with the destination path
+                      update current patches with the destination path
 -f FORMAT, --format FORMAT
-specify tag or range of commits for patches to be
-formatted
+                      specify tag or range of commits for patches to be
+                      formatted
 -c, --changed         update also changed files with the content
+-e, --existing        work with already formatted patches from Git
 ```
 
 #### Typical routine
