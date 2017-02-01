@@ -183,7 +183,7 @@ def do_update_patches(args):
 
     # Generate an include for spec changes
     changes = open("patches.changes.txt", "w")
-    for title, data in [('Changed', changed), ('Added', added), ('Removed', removed),]:
+    for title, data in [('Changed', changed), ('Added', added), ('Removed', removed)]:
         if not data: continue
         print >> changes, "- {0}:".format(title)
         for fname in sorted(data):
