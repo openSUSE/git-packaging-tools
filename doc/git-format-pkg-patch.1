@@ -1,0 +1,217 @@
+.\" generated with Ronn/v0.7.3
+.\" http://github.com/rtomayko/ronn/tree/0.7.3
+.
+.TH "GIT\-FORMAT\-PKG\-PATCH" "1" "2017-02-02" "" ""
+.
+.SH "NAME"
+\fBgit\-format\-pkg\-patch\fR \- Git to OBS patch remixer
+.
+.SH "SYNOPSIS"
+usage: git\-format\-pkg\-patch [\-h] [\-u UPDATE] [\-f FORMAT] [\-o ORDERING] [\-x INDEX] [\-s SPEC] [\-i] [\-c] [\-e] [\-v]
+.
+.SH "DESCRIPTION"
+\fBgit\-format\-pkg\-patch\fR provides a high\-level commandline interface for the patch operations\. It is intended as an end user interface and enables some options better suited for interactive usage by default compared to more specialized tools like Emacs or bad ideas like Vim\.
+.
+.P
+Package maintainer can use this utility in order to:
+.
+.IP "1." 4
+Format patches from a specific range of commits or tags etc\.
+.
+.IP "2." 4
+Re\-format them the way they are compatible with OBS change tracking policies
+.
+.IP "3." 4
+Replace/update existing patches if necessary
+.
+.IP "4." 4
+Generate an inclusion text file for \fB\.changes\fR log\.
+.
+.IP "5." 4
+Generate an inclusion text file for \fB\.spec\fR file\.
+.
+.IP "" 0
+.
+.SH "OPTIONS"
+.
+.TP
+\fB\-u, \-\-update\fR
+Update current patches of the RPM package with the destination path where Git extracted patches are located\.
+.
+.TP
+\fB\-f, \-\-format\fR
+Specify tag or range of commits for patches to be formatted from the Git so they are compatible with the OBS package\.
+.
+.TP
+\fB\-o, \-\-ordering\fR
+Specify ordering spec inclusion file\. Default: \fBpatches\.orders\.txt\fR in the current directory where Git patches are also extracted to\.
+.
+.TP
+\fB\-x, \-\-index\fR
+Specify start ordering index for patches\. Default: \fB0\fR\.
+.
+.TP
+\fB\-s, \-\-spec\fR
+Remix spec file and extract sources with their comments to match new patch ordering\. This will replace new patches with new orders reusing already existing comments\.
+.
+.TP
+\fB\-i, \-\-increment\fR
+Use increments for unique names when patch commits repeated\.
+.
+.TP
+\fB\-c, \-\-changed\fR
+Update also changed files with the content\.
+.
+.TP
+\fB\-e, \-\-existing\fR
+Work with already formatted patches from Git, using \fBformat\-patches\fR command\.
+.
+.TP
+\fB\-v, \-\-version\fR
+Show current version and exit\.
+.
+.SH "EXAMPLES"
+.
+.SS "Create patches from Git"
+Extract patches from the Git, alredy formatted for the typical RPM package:
+.
+.IP "\(bu" 4
+Create an \fIempty\fR directory within the Git project, in which patches are going to be created\.
+.
+.IP "\(bu" 4
+Create patches against a tag \fBfoo\fR, example:
+.
+.IP "" 0
+.
+.IP "" 4
+.
+.nf
+
+$ git\-format\-patch \-f foo
+.
+.fi
+.
+.IP "" 0
+.
+.IP "\(bu" 4
+In the file \fBpatches\.orders\.txt\fR will be a reformatted list of patches that needs to be included into the \fB\.spec\fR file later\.
+.
+.IP "\(bu" 4
+You can specify another ordering file name/location with an option \fB\-o\fR flag\.
+.
+.IP "" 0
+.
+.SS "Update OBS package (RPM) with extracted patches"
+.
+.IP "\(bu" 4
+Assuming patches are alredy extracted (see an exmple above), change to the root directory of the RPM package (an OBS project)\.
+.
+.IP "\(bu" 4
+\fBOption A\fR: Update the project with the set of patches (patches that are with the same filenames but are changed at the code level will be \fIonly reported\fR but will never be updated:
+.
+.IP "" 0
+.
+.IP "" 4
+.
+.nf
+
+$ cd /to/obs/project
+$ git\-format\-patch \-u /path/to/your/patches
+.
+.fi
+.
+.IP "" 0
+.
+.IP "\(bu" 4
+\fBOption B\fR: Update the project with the set of patches including patches that are with the same names but changed at the code level, add flag \fB\-c\fR:
+.
+.IP "" 0
+.
+.IP "" 4
+.
+.nf
+
+$ cd /to/obs/project
+$ git\-format\-patch \-u /path/to/your/patches \-c
+.
+.fi
+.
+.IP "" 0
+.
+.SS "Remix spec file"
+The \fBgit\-format\-patch\fR offers an helper functionality that allows to remix the ordering file (where order of new patches is enlisted) with the existing \fB\.spec\fR file, extracting useful comments for each patch\.
+.
+.P
+This funtion has a conventional limitations, as follows:
+.
+.IP "\(bu" 4
+Patch has to be commented above it, and have no empty lines\. Example:
+.
+.IP "" 0
+.
+.IP "" 4
+.
+.nf
+
+# This comment is ignored, because there an empty line below
+
+# This comment is accepted
+# This comment is also accepted
+Patch1:          filename\-of\-the\.patch
+
+# This is comment for foobar\.patch below
+Patch2:          foobar\.patch
+.
+.fi
+.
+.IP "" 0
+.
+.IP "\(bu" 4
+Match of the patches are done by the \fIfilename\fR, therefore it has to be exact\.
+.
+.IP "\(bu" 4
+In case there is no comment found, "Description N/A" is inserted\.
+.
+.IP "" 0
+.
+.P
+That said in order to remix the ordering with the existing spec file, do the following:
+.
+.IP "" 4
+.
+.nf
+
+git\-format\-patch \-s /path/to/project\.spec \e
+                 \-o /path/to/patches\.orders\.txt > result\.txt
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Although an actual patching directives are not processed and still must be double\-checked by the package maintainer\.
+.
+.SH "AUTHOR"
+Bo Maryniuk \fIbo@suse\.de\fR
+.
+.SH "LINKS"
+For OBS guidelines:
+.
+.IP "\(bu" 4
+https://en\.opensuse\.org/openSUSE:Packaging_Patches_guidelines
+.
+.IP "" 0
+.
+.P
+For OBS general operations:
+.
+.IP "\(bu" 4
+http://en\.opensuse\.org/openSUSE:Build_Service_Tutorial
+.
+.IP "\(bu" 4
+http://en\.opensuse\.org/openSUSE:OSC
+.
+.IP "" 0
+.
+.SH "SEE ALSO"
+osc(1), rpm(1), git\-format\-patch(1)
