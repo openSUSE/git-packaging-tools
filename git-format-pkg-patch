@@ -189,9 +189,9 @@ def extract_spec_source_patches(specfile):
     return patchset
 
 
-def do_analyze_spec(args):
+def do_remix_spec(args):
     '''
-    Analyze spec file.
+    Remix spec file.
 
     :param args:
     :return:
@@ -329,7 +329,7 @@ def main():
     parser.add_argument('-x', '--index', action='store', const=None,
                         help='specify start ordering index. Default: 0')
     parser.add_argument('-s', '--spec', action='store', const=None,
-                        help='analyze spec file and extract sources with their comments to match new patch ordering')
+                        help='remix spec file and extract sources with their comments to match new patch ordering')
     parser.add_argument('-i', '--increment', action='store_const', const=True,
                         help='use increments for unique names when patch commits repeated')
     parser.add_argument('-c', '--changed', action='store_const', const=True,
@@ -350,7 +350,7 @@ def main():
         if args.version:
             print "Version: {0}".format(VERSION)
         elif args.spec:
-            do_analyze_spec(args)
+            do_remix_spec(args)
         elif args.update and not args.format:
             do_update_patches(args)
         elif (args.format and not args.update) or args.existing:
