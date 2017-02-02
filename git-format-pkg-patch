@@ -143,6 +143,74 @@ def unique(fname):
     return '.'.join(fname)
 
 
+def extract_spec_source_patches(specfile):
+    '''
+    Extracts source patches from the .spec file to match existing comments,
+    according to the https://en.opensuse.org/openSUSE:Packaging_Patches_guidelines
+
+    :param: specfile
+    :return:
+    '''
+    patch_sec_start = False
+    patch_sec_end = False
+    head_buff = []
+    patch_section = []
+    for spec_line in open(specfile).read().split(os.linesep):
+        if re.match(r'^[Pp]atch[0-9]+:', spec_line) and not patch_sec_start:
+            patch_sec_start = True
+
+        if not spec_line.startswith('#') and not re.match(r'^[Pp]atch[0-9]+:', spec_line) and patch_sec_start and not patch_sec_end:
+            patch_sec_end = True
+
+        if not patch_sec_start and not patch_sec_end:
+            head_buff.append(spec_line)
+
+        if patch_sec_start and not patch_sec_end:
+            patch_section.append(spec_line)
+
+    first_comment = []
+    for head_line in reversed(head_buff):
+        if not head_line:
+            break
+        if head_line.startswith('#'):
+            first_comment.append(head_line)
+    patch_section.insert(0, os.linesep.join(first_comment))
+
+    patchset = {}
+    curr_key = None
+    for line in reversed(patch_section):
+        if re.match(r'^[Pp]atch[0-9]+:', line):
+            curr_key = re.sub(r'^[Pp]atch[0-9]+:', '', line).strip()
+            patchset[curr_key] = []
+            continue
+        if curr_key and line and line.startswith('#'):
+            patchset[curr_key].append(line)
+
+    return patchset
+
+
+def do_analyze_spec(args):
+    '''
+    Analyze spec file.
+
+    :param args:
+    :return:
+    '''
+    if not os.path.exists(args.spec or ''):
+        raise IOError('Specfile {0} is not accessible or is somewhere else'.format(args.spec))
+    if not os.path.exists(args.ordering or ''):
+        args.ordering = './{0}'.format(ORDERING_FILE)
+        if not os.path.exists(args.ordering):
+            raise IOError('Ordering file is expected "./{0}" but is not visible'.format(ORDERING_FILE))
+
+    patchset = extract_spec_source_patches(args.spec)
+    for o_line in open(args.ordering).read().split(os.linesep):
+        if re.match(r'^[Pp]atch[0-9]+:', o_line):
+            ref, pname = filter(None, o_line.split(' '))
+            print os.linesep.join(patchset.get(pname) or ['# Description N/A'])
+            print ref.ljust(15), pname
+
+
 def do_create_patches(args):
     '''
     Create and reformat patches for the package.
@@ -260,6 +328,8 @@ def main():
                         help='specify ordering spec inclusion file. Default: {0}'.format(ORDERING_FILE))
     parser.add_argument('-x', '--index', action='store', const=None,
                         help='specify start ordering index. Default: 0')
+    parser.add_argument('-s', '--spec', action='store', const=None,
+                        help='analyze spec file and extract sources with their comments to match new patch ordering')
     parser.add_argument('-i', '--increment', action='store_const', const=True,
                         help='use increments for unique names when patch commits repeated')
     parser.add_argument('-c', '--changed', action='store_const', const=True,
@@ -279,6 +349,8 @@ def main():
 
         if args.version:
             print "Version: {0}".format(VERSION)
+        elif args.spec:
+            do_analyze_spec(args)
         elif args.update and not args.format:
             do_update_patches(args)
         elif (args.format and not args.update) or args.existing:
