@@ -173,8 +173,7 @@ def do_create_patches(args):
                 order += args.index
             remove_order_from_subject(fname, nfname, use_unique=args.increment)
             os.unlink(fname)
-
-            ord_fh.write('#Patch{num}:\t\t{fname}\n'.format(num=order, fname=nfname))
+            ord_fh.write('{patch}{fname}\n'.format(patch='Patch{0}:'.format(order).ljust(15), fname=nfname))
             ord_patches_p.append(order)
 
             patches += 1
@@ -182,7 +181,7 @@ def do_create_patches(args):
     if ord_patches_p:
         ord_fh.write('#\n#\n# Patch processing inclusion:\n')
         for order in ord_patches_p:
-            ord_fh.write('#%patch{num} -p1\n'.format(num=order))
+            ord_fh.write('%patch{num} -p1\n'.format(num=order))
     else:
         ord_fh.write('# Nothing here, folks... :-(\n')
 
