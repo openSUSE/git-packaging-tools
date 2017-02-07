@@ -47,6 +47,19 @@ The `git-format-pkg-patch` tool is here to:
 4. Generate an inclusion text file for `.changes` log
 5. Use those patches that actually makes sense to be replaced.
 
+#### Alternative approaches
+
+You may ask, if we want to avoid the bronze age, why use patches at
+all? Since instead we could just keep all the patches in Git, and
+then automatically generate tarballs directly from the head of a Git
+branch. And in fact there are also tools to help automate that, e.g.
+
+- https://github.com/openSUSE/pack-tools/tree/master/contrib/BS-pkg-testing
+
+One answer is that sometimes it is desired to take the sources from an
+official release tag as a tarball with an exact checksum, and then
+put patches on top of that.
+
 #### Man pages & docs
 
 Please read [up to date man page](https://github.com/openSUSE/git-packaging-tools/blob/master/doc/git-format-pkg-patch.md).
