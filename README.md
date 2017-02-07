@@ -1,6 +1,6 @@
 ## Packaging Tools
 
-This are tools that helps preparing/operating/modifying patches and spec files during the tough life of packager.
+This repo contains a set of tools, where main use case are whether package requires a set of patches, and for ease to track them, they are tracked in a separate Git repository that corresponds to the source code of the packaged release. The main aim of these tools is help prepare/operate/modify patches and spec files.
 
 ### Patch remixer
 
