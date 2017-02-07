@@ -1,20 +1,21 @@
 ## Packaging Tools
 
-This are tools that helps preparing/operating/modifying patches and spec files during the tough life of packager.
+These are tools that help preparing/operating/modifying patches and
+`.spec` files during the tough life of packagers.
 
 ### Patch remixer
 
-So you are package mainater. You as a first step, you use the whole
+So you are a package maintainer. As a first step, you use the whole
 [OBS](http://openbuildservice.org) because you do not want to live in
 a stone age clinging rocks to get a fire. But as a next step, you
 aren't happy to use [Quilt](http://savannah.nongnu.org/projects/quilt)
 from back to 2003 (a bronze age, to be fair), so you want to
 be modern and keep all your patches in the Git repository, instead of
-directly inside you package.
+directly inside your package.
 
 But you quickly discover that Git has some limitations, which
-preventing you to
-[get it right](https://en.opensuse.org/openSUSE:Packaging_Patches_guidelines). Limitations
+are preventing you from
+[getting it right](https://en.opensuse.org/openSUSE:Packaging_Patches_guidelines). Limitations
 are these:
 
 1. Naturally, Git creates patches with an order number:
@@ -28,9 +29,9 @@ are these:
    "shuffle" them around, shifting their order during version update
    etc.
 
-3. In package terms, a commit to a Git is not always a patch. Patch
+3. In package terms, a commit to a Git is not always a patch. A patch
    may contain (and usually does) several commits. So every time you
-   squash few commits into one patch and then rebasing the whole
+   squash few commits into one patch and then rebase the whole
    thing, you usually do `force-push`. This is perfectly OK for
    tracking the patches in a dedicated Git repo. However `force-push`
    renders commit ID changing, while an _actual code_ mostly do not
