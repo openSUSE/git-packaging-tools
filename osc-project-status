@@ -1,0 +1,46 @@
+#!/bin/bash
+
+obs_projects=(
+    "systemsmanagement:saltstack=salt"
+    "systemsmanagement:saltstack:testing=salt"
+    "systemsmanagement:saltstack:next=salt"
+)
+
+Y="\e[93m"
+R="\e[31m"
+G="\e[92m"
+W="\e[97m"
+D="\e[39m"
+
+function get_patches_amount() {
+    echo "$1" | grep 'patch$' | wc -l
+}
+
+function get_pkg_list() {
+    project=$1
+    package=$2
+    echo "$(osc ls $project $package)"
+}
+
+function get_version() {
+    project=$1
+    package=$2
+    echo "$(osc less $project/$package $package.spec | grep '^Version' | sed -e 's/.*\s//g')"
+}
+
+## Main
+for items in ${obs_projects[@]}; do
+    IFS=$'=' read -r repo pkg <<< "$items"
+    pkg_list=$(get_pkg_list $repo $pkg)
+    pkg_patches=$(get_patches_amount "$pkg_list")
+    pkg_version=$(get_version $repo $pkg)
+
+    if [ "$pkg_patches" -eq "0" ]; then
+	VC=$G
+    else
+	VC=$R
+    fi
+
+    echo -e "$Y$repo/$pkg$D"
+    printf "    Patches: $VC%s$D\n    Version: $W%s$D\n" $pkg_patches $pkg_version
+done
