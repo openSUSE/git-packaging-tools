@@ -3,11 +3,14 @@
 config="$HOME/.osc-project-statusrc"
 if [ ! -f $config ]; then
     cat <<EOF >> $config
-# Add your project=package configuration
+# Add your project/package/expectedversion (optional)
+# configuration. In case package has a different version
+# than expected, you will get notified.
+#
 # Example:
 # obs_projects=(
-#     some:project/packagename
-#     some:another:project/anotherpackagename
+#     some:project/packagename/version
+#     some:another:project/anotherpackagename/1.2.3
 #     and:so/on"
 # )
 
@@ -25,6 +28,7 @@ fi
 
 Y="\e[93m"
 R="\e[31m"
+HR="\e[91m"
 G="\e[92m"
 W="\e[97m"
 D="\e[39m"
@@ -47,12 +51,21 @@ function get_version() {
 
 ## Main
 for items in ${obs_projects[@]}; do
-    IFS=$'/' read -r repo pkg <<< "$items"
+    IFS=$'/' read -r repo pkg version <<< "$items"
     pkg_list=$(get_pkg_list $repo $pkg)
     pkg_patches=$(get_patches_amount "$pkg_list")
     pkg_version=$(get_version $repo $pkg)
     IFS=" | " read -ra pkg_log_items <<< "$(osc log $repo/$pkg | head -2 | grep -ve '---')"
 
+    if [ -z "$version" ]; then
+	VRC=$W
+    else
+	if [ "$version" == "$pkg_version" ]; then
+	    VRC=$G
+	else
+	    VRC="$R \bexpected: $HR$version$R, current: $HR"
+	fi
+    fi
 
     if [ "$pkg_patches" -eq "0" ]; then
 	VC=$G
@@ -61,7 +74,7 @@ for items in ${obs_projects[@]}; do
     fi
 
     echo -e "$Y$repo/$pkg$D"
-    printf "    Patches: $VC%s$D\n    Version: $W%s$D\n" $pkg_patches $pkg_version
+    printf "    Patches: $VC%s$D\n    Version: $VRC%s$D\n" $pkg_patches $pkg_version
     printf "   Revision: $W%s$D\nAccepted by: $W%s$D\nAccepted on: $W%s$D\n" \
 	   ${pkg_log_items[0]} ${pkg_log_items[1]} "${pkg_log_items[2]} ${pkg_log_items[3]}"
 done
