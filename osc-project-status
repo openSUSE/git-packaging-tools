@@ -6,9 +6,9 @@ if [ ! -f $config ]; then
 # Add your project=package configuration
 # Example:
 # obs_projects=(
-#     "some:project=packagename"
-#     "some:another:project=anotherpackagename"
-#     "and:so=on"
+#     some:project/packagename
+#     some:another:project/anotherpackagename
+#     and:so/on"
 # )
 
 obs_projects=()
@@ -47,7 +47,7 @@ function get_version() {
 
 ## Main
 for items in ${obs_projects[@]}; do
-    IFS=$'=' read -r repo pkg <<< "$items"
+    IFS=$'/' read -r repo pkg <<< "$items"
     pkg_list=$(get_pkg_list $repo $pkg)
     pkg_patches=$(get_patches_amount "$pkg_list")
     pkg_version=$(get_version $repo $pkg)
