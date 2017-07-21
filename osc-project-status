@@ -1,10 +1,27 @@
 #!/bin/bash
 
-obs_projects=(
-    "systemsmanagement:saltstack=salt"
-    "systemsmanagement:saltstack:testing=salt"
-    "systemsmanagement:saltstack:next=salt"
-)
+config="$HOME/.osc-project-statusrc"
+if [ ! -f $config ]; then
+    cat <<EOF >> $config
+# Add your project=package configuration
+# Example:
+# obs_projects=(
+#     "some:project=packagename"
+#     "some:another:project=anotherpackagename"
+#     "and:so=on"
+# )
+
+obs_projects=()
+
+EOF
+fi
+
+source $config
+
+if [ "${#obs_projects[@]}" -eq "0" ]; then
+    echo "Please add some projects into your configuration file at $config"
+    exit 1;
+fi
 
 Y="\e[93m"
 R="\e[31m"
