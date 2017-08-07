@@ -40,7 +40,7 @@ function get_patches_amount() {
 function get_pkg_list() {
     project=$1
     package=$2
-    echo "$(osc ls $project $package)"
+    echo "$(osc ls -e $project $package)"
 }
 
 function get_version() {
