@@ -68,6 +68,24 @@ function list_projects() {
 }
 
 ## Main
+# Convert long options to their short equivalents
+for arg in "$@"; do
+    shift
+    case "$arg" in
+	"--help")
+	    set -- "$@" "-h"
+	    ;;
+	"--list")
+	    set -- "$@" "-l"
+	    ;;
+	"--project")
+	    set -- "$@" "-p"
+	    ;;
+	*)
+	    set -- "$@" "$arg"
+	    ;;
+    esac
+done
 for items in ${obs_projects[@]}; do
     IFS=$'/' read -r repo pkg version <<< "$items"
     pkg_list=$(get_pkg_list $repo $pkg)
