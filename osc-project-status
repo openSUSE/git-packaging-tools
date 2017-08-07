@@ -27,6 +27,7 @@ if [ "${#obs_projects[@]}" -eq "0" ]; then
 fi
 
 Y="\e[93m"
+DY="\e[33m"
 R="\e[31m"
 HR="\e[91m"
 G="\e[92m"
@@ -63,7 +64,7 @@ function get_version() {
 function list_projects() {
     for items in ${obs_projects[@]}; do
 	IFS=$'/' read -r repo pkg version <<< "$items"
-	echo -e "$Y$repo/$pkg$D ($G$version$D)"
+	echo -e "$DY$repo$Y/$pkg$D ($G$version$D)"
     done
 }
 
