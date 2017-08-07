@@ -60,6 +60,13 @@ function get_version() {
     echo "$(osc less $project/$package $package.spec | grep '^Version' | sed -e 's/.*\s//g')"
 }
 
+function list_projects() {
+    for items in ${obs_projects[@]}; do
+	IFS=$'/' read -r repo pkg version <<< "$items"
+	echo -e "$Y$repo/$pkg$D ($G$version$D)"
+    done
+}
+
 ## Main
 for items in ${obs_projects[@]}; do
     IFS=$'/' read -r repo pkg version <<< "$items"
