@@ -86,6 +86,35 @@ for arg in "$@"; do
 	    ;;
     esac
 done
+
+one_project_only=""
+# The getopts knows only short options
+# Only "getopt" can do long options, but this is
+# safe done only by GNU getopt.
+while getopts "hlp:" opt; do
+    case $opt in
+	h)
+	    display_help;
+	    exit 1
+	    ;;
+	l)
+	    list_projects;
+	    exit 1
+	    ;;
+	p)
+	    one_project_only=$OPTARG
+	    ;;
+	:)
+	    display_help;
+	    exit 1
+	    ;;
+	\?)
+	    display_help;
+	    exit 1
+	    ;;
+    esac
+done
+
 for items in ${obs_projects[@]}; do
     IFS=$'/' read -r repo pkg version <<< "$items"
     pkg_list=$(get_pkg_list $repo $pkg)
