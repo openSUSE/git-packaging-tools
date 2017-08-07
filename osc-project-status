@@ -33,6 +33,17 @@ G="\e[92m"
 W="\e[97m"
 D="\e[39m"
 
+function display_help() {
+    cat <<EOF
+Usage: $(basename $0) [OPTION]
+List status of the monitored projects in the OBS.
+
+   -l, --list           list examined projects
+   -h, --help           this help message
+
+EOF
+}
+
 function get_patches_amount() {
     echo "$1" | grep 'patch$' | wc -l
 }
