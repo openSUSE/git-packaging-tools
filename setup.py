@@ -8,5 +8,6 @@ setup(
     license='MIT',
     author='Bo Maryniuk',
     author_email='bo@suse.de',
+    scripts=['git-format-pkg-patch', 'osc-project-status'],
     description='Git to OBS tools'
 )
