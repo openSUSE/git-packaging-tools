@@ -53,6 +53,11 @@ try:
 except ImportError as ex:
     yaml = None
 
+try:
+    import pygit2
+except ImportError as ex:
+    pygit2 = None
+
 
 ORDERING_FILE = 'patches.orders.txt'
 CHANGES_FILE = 'patches.changes.txt'
@@ -64,19 +69,78 @@ class Scenario(object):
     '''
     def __init__(self, scenario_path):
         self._scenario = yaml.load(open(scenario_path).read())
+        self._git = Gitworks(self._scenario.get('git'))
 
-    def _git_prepare(self, repodata):
+    def process(self):
+        self._git.prepare(self._scenario['git'])
+        repo = self._git.checkout(self._scenario['git']['branch'])
+        self._git.fetch(repo, self._scenario['git']['branch'])
+
+        patches_dir = os.path.join(self._scenario['git']['repo-full-path'], '.patches')
+        if not os.path.exists(patches_dir):
+            os.makedirs(patches_dir)
+        os.chdir(patches_dir)
+
+
+class Gitworks(object):
+    '''
+    Git commands.
+    '''
+    def __init__(self, config):
+        self._config = config
+        if not self._config:
+            raise Exception('Git is not configured!')
+
+        for keycheck in ['repo-path', 'branch', 'url']:
+            if keycheck not in self._config:
+                raise Exception('The "{0}" directive is missing'.format(keycheck))
+        name = self.get_repo_name(self._config['url'])
+        self._config['repo-full-path'] = os.path.join(self._config['repo-path'], name)
+
+    def get_repo_name(self, url):
+        '''
+        Get repository name from the url.
+        :param url:
+        :return:
+        '''
+        return url.split('/')[-1].split('.')[0]
+
+    def prepare(self, repodata):
         '''
         Prepare sources from the repository.
         '''
         repodata = repodata or {}
-        for keycheck in ['repo-path', 'branch']:
-            if keycheck not in repodata:
-                raise Exception('The "{0}" directive is missing'.format(keycheck))
+        if not os.path.exists(repodata['repo-full-path']):
+            os.makedirs(repodata['repo-full-path'])
+            pygit2.clone_repository(repodata['url'], repodata['repo-full-path'])
 
-    def process(self):
-        self._git_prepare(self._scenario.get('git'))
-        print self._scenario
+    def checkout(self, branch_name):
+        '''
+        Checkout an appropriate branch.
+
+        :param branch:
+        :return:
+        '''
+        repo = pygit2.Repository(self._config['repo-full-path'])
+        branch = repo.lookup_branch(branch_name)
+        reference = repo.lookup_reference(branch.name)
+        repo.checkout(reference)
+
+        return repo
+
+    def fetch(self, repo, branch_name):
+        '''
+        Fetch the repo objects
+
+        :param repo:
+        :return:
+        '''
+        for remote in repo.remotes:
+            remote.fetch()
+            last_commit = repo.lookup_reference('refs/remotes/origin/{0}'.format(branch_name)).target
+            merge_result = repo.merge_analysis(last_commit)
+            if merge_result[0] == pygit2.GIT_MERGE_ANALYSIS_UP_TO_DATE:
+                print "Up to date"
 
 
 def remove_order(filename):
@@ -378,12 +442,12 @@ def main():
         if args.version:
             print "Version: {0}".format(VERSION)
         if args.scenario:
-            if yaml is not None:
-                scenario = Scenario(args.scenario)
-                scenario.process()
-            else:
-                print >> sys.stderr, "YAML module is not installed."
-                sys.exit(1)
+            for mod, mod_descr in [(yaml, 'YAML'), (pygit2, 'pygit2')]:
+                if mod is None:
+                    raise Exception("{0} module is not installed.".format(mod_descr))
+
+            scenario = Scenario(args.scenario)
+            scenario.process()
         else:
             if args.spec:
                 do_remix_spec(args)
