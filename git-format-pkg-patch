@@ -48,9 +48,35 @@ import re
 import argparse
 import shutil
 
+try:
+    import yaml
+except ImportError as ex:
+    yaml = None
+
 
 ORDERING_FILE = 'patches.orders.txt'
 CHANGES_FILE = 'patches.changes.txt'
+
+
+class Scenario(object):
+    '''
+    Scenario processor.
+    '''
+    def __init__(self, scenario_path):
+        self._scenario = yaml.load(open(scenario_path).read())
+
+    def _git_prepare(self, repodata):
+        '''
+        Prepare sources from the repository.
+        '''
+        repodata = repodata or {}
+        for keycheck in ['repo-path', 'branch']:
+            if keycheck not in repodata:
+                raise Exception('The "{0}" directive is missing'.format(keycheck))
+
+    def process(self):
+        self._git_prepare(self._scenario.get('git'))
+        print self._scenario
 
 
 def remove_order(filename):
@@ -338,6 +364,8 @@ def main():
                         help='work with already formatted patches from Git')
     parser.add_argument('-v', '--version', action='store_const', const=True,
                         help='show version')
+    parser.add_argument('-p', '--scenario', action='store', const=None,
+                        help='Automation scenario config file (that thing in YAML, you know...)')
     args = parser.parse_args()
 
     try:
@@ -349,15 +377,23 @@ def main():
 
         if args.version:
             print "Version: {0}".format(VERSION)
-        elif args.spec:
-            do_remix_spec(args)
-        elif args.update and not args.format:
-            do_update_patches(args)
-        elif (args.format and not args.update) or args.existing:
-            do_create_patches(args)
+        if args.scenario:
+            if yaml is not None:
+                scenario = Scenario(args.scenario)
+                scenario.process()
+            else:
+                print >> sys.stderr, "YAML module is not installed."
+                sys.exit(1)
         else:
-            parser.print_help()
-            sys.exit(1)
+            if args.spec:
+                do_remix_spec(args)
+            elif args.update and not args.format:
+                do_update_patches(args)
+            elif (args.format and not args.update) or args.existing:
+                do_create_patches(args)
+            else:
+                parser.print_help()
+                sys.exit(1)
     except Exception as ex:
         print >> sys.stderr, "Critical error:", ex
 
