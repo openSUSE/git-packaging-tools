@@ -305,7 +305,7 @@ def do_update_patches(args):
         if not data: continue
         print >> changes, "- {0}:".format(title)
         for fname in sorted(data):
-            print >> changes, " * {0}".format(fname)
+            print >> changes, "  * {0}".format(fname)
         print >> changes
 
     if not removed and not added and not changes:
