@@ -80,9 +80,10 @@ class Scenario(object):
         patches_dir = os.path.join(self._scenario['git']['repo-full-path'], '.patches')
         if not os.path.exists(patches_dir):
             os.makedirs(patches_dir)
+        self._git._config['patches-dir'] = patches_dir
 
-        patches = self._git.make_patches(repo, tag='vTest', path=patches_dir)
-        print '\n'.join(self._git.gen_changelog(repo, patches))
+        patches = self._git.make_patches(repo, tag='vTest')
+        self._git.gen_changelog(repo, patches)
 
 
 class GitOpException(Exception):
@@ -93,6 +94,9 @@ class Git(object):
     '''
     Git commands.
     '''
+    IDX_PATCHES_FILE = '.patches-order'
+    LOG_PATCHES_FILE = '.patches-changes'
+
     def __init__(self, config):
         self._config = config
         if not self._config:
@@ -144,6 +148,67 @@ class Git(object):
         for remote in repo.remotes:
             remote.fetch()
 
+    def _remove_filename_order(self, filename):
+        '''
+        Remove order of the patch filename.
+
+        Git formats patches: XXXX-filename.patch
+        This function removes the "XXXX-" part, if any.
+        '''
+        b_fname = os.path.basename(filename)
+        dir_name = os.path.dirname(filename)
+
+        ordnum = b_fname.split('-')[0]
+        if ordnum and not re.sub(r'[0-9]', '', ordnum):
+            new_filename = os.path.join(dir_name, b_fname.split('-', 1)[-1]).lower()
+            ordnum = int(ordnum)
+        else:
+            new_filename = filename
+            ordnum = None
+
+        return ordnum, filename, new_filename
+
+    def _remove_body_order(self, src_file, dst_file, use_unique=False):
+        '''
+        Remove subject inside the patch.
+
+        Git format patches inside with the following subject format:
+        Subject: [PATCH X/Y] .........
+
+        This function removes [PATCH X/Y] part, if any. In Git format-patches one can
+        add "-N" flag, so then subject won't have these numbers, but just "[PATCH]".
+        In this case we leave it out.
+        '''
+
+        if os.path.exists(dst_file) and not use_unique:
+            raise IOError('the file {0} exists'.format(dst_file))
+
+        if use_unique:
+            dst_file = unique(dst_file)
+        dst = open(dst_file, 'w')
+        for fline in open(src_file).read().split(os.linesep):
+            fline_tk = re.split(r'\s+\[PATCH \d+/\d+\]\s+', fline)
+            if len(fline_tk) == 2 and fline_tk[0] == 'Subject:':
+                fline = ' [PATCH] '.join(fline_tk)
+            dst.write('{0}\n'.format(fline))
+        dst.close()
+        if os.path.exists(src_file):
+            os.unlink(src_file)
+
+    def _pack_order(self, paths):
+        '''
+        Remove order from the patches (subject, body, filename etc) and create an index file nearby.
+        :param paths:
+        :return:
+        '''
+
+        idx_file = open(os.path.join(self._config['patches-dir'], self.IDX_PATCHES_FILE), 'w')
+        for commit_id, patch_pth in paths:
+            idx, current_fname, new_fname = self._remove_filename_order(patch_pth)
+            self._remove_body_order(current_fname, new_fname)
+            idx_file.write('{0}\n'.format(os.path.basename(new_fname)))
+        idx_file.close()
+
     def _get_physical_patch_id(self, path):
         '''
         Extracts a physical ID from the patch file.
@@ -170,10 +235,12 @@ class Git(object):
         :param path:
         :return:
         '''
+        path = path or self._config.get('patches-dir', './')
         paths = repo.git.format_patch(tag, '-o', path).split('\n')
         for idx, p_pth in enumerate(paths):
             paths[idx] = (self._get_physical_patch_id(p_pth), p_pth)
 
+        self._pack_order(paths)
         return paths
 
     def gen_changelog(self, repo, patches):
@@ -212,7 +279,12 @@ class Git(object):
             commit = repo.commit(commit_id)
             changelog.append(_format_message(commit.message))
 
+        changelog_file = open(os.path.join(self._config['patches-dir'], self.LOG_PATCHES_FILE), 'w')
+        changelog_file.write(os.linesep.join(changelog) + os.linesep)
+        changelog_file.close()
+
         return changelog
+
 
 def remove_order(filename):
     '''
