@@ -203,10 +203,14 @@ class Git(object):
         '''
 
         idx_file = open(os.path.join(self._config['patches-dir'], self.IDX_PATCHES_FILE), 'w')
+        idx_file.write('# Patches involved:\n')
         for commit_id, patch_pth in paths:
             idx, current_fname, new_fname = self._remove_filename_order(patch_pth)
             self._remove_body_order(current_fname, new_fname)
-            idx_file.write('{0}\n'.format(os.path.basename(new_fname)))
+            idx_file.write('Patch{0}:\t\t{1}\n'.format(idx, os.path.basename(new_fname)))
+        idx_file.write('\n# Patching process:\n')
+        for idx in xrange(len(paths)):
+            idx_file.write('%patch{0} -p1\n'.format(idx + 1))
         idx_file.close()
 
     def _get_physical_patch_id(self, path):
