@@ -80,7 +80,7 @@ class Scenario(object):
         patches_dir = os.path.join(self._scenario['git']['repo-full-path'], '.patches')
         if not os.path.exists(patches_dir):
             os.makedirs(patches_dir)
-        self._git._config['patches-dir'] = patches_dir
+        self._git._config['patches-dir'] = patches_dir  # Not good.
 
         patches = self._git.make_patches(repo, tag='vTest')
         self._git.gen_changelog(repo, patches)
@@ -148,6 +148,26 @@ class Git(object):
         for remote in repo.remotes:
             remote.fetch()
 
+    def _unique(self, fname):
+        '''
+        Change name to the unique, in case it isn't.
+
+        :param fname:
+        :param use:
+        :return:
+        '''
+        fname = fname.split('.')
+        if '-' not in fname[0]:
+            fname[0] = '{0}-{1}'.format(fname[0], 1)
+        else:
+            chnk = fname[0].split('-')
+            try:
+                fname[0] = '{0}-{1}'.format('-'.join(chnk[:-1]), int(chnk[-1]) + 1)
+            except ValueError, err:
+                fname[0] = '{0}-{1}'.format(fname[0], 1)  # Filename is not in "str-int", but "str-str".
+
+        return '.'.join(fname)
+
     def _remove_filename_order(self, filename):
         '''
         Remove order of the patch filename.
@@ -184,7 +204,7 @@ class Git(object):
             raise IOError('the file {0} exists'.format(dst_file))
 
         if use_unique:
-            dst_file = unique(dst_file)
+            dst_file = self._unique(dst_file)
         dst = open(dst_file, 'w')
         for fline in open(src_file).read().split(os.linesep):
             fline_tk = re.split(r'\s+\[PATCH \d+/\d+\]\s+', fline)
