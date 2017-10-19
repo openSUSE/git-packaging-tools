@@ -47,6 +47,7 @@ import sys
 import re
 import argparse
 import shutil
+import textwrap
 
 try:
     import yaml
@@ -80,7 +81,8 @@ class Scenario(object):
         if not os.path.exists(patches_dir):
             os.makedirs(patches_dir)
 
-        print self._git.make_patches(repo, tag='vTest', path=patches_dir)
+        patches = self._git.make_patches(repo, tag='vTest', path=patches_dir)
+        print '\n'.join(self._git.gen_changelog(repo, patches))
 
 
 class GitOpException(Exception):
@@ -169,15 +171,48 @@ class Git(object):
         :return:
         '''
         paths = repo.git.format_patch(tag, '-o', path).split('\n')
-        for idx, value in enumerate(paths):
-            paths[idx] = (self._get_physical_patch_id(value), value)
+        for idx, p_pth in enumerate(paths):
+            paths[idx] = (self._get_physical_patch_id(p_pth), p_pth)
+
         return paths
 
-    def gen_changelog(self, repo):
-        pass
-        #for commit in repo.iter_commits():
-        #    print commit.message.strip()
-        #    print "-" * 80
+    def gen_changelog(self, repo, patches):
+        '''
+        Generate chanelog.
+
+        :param repo:
+        :param patches:
+        :return:
+        '''
+        def _format_message(msg):
+            '''
+            Format message from anything to a changelog-compatible.
+
+            :param msg:
+            :return:
+            '''
+            wrapper = textwrap.TextWrapper(initial_indent='- ',
+                                           subsequent_indent='  ',
+                                           break_on_hyphens=True,
+                                           break_long_words=True,
+                                           fix_sentence_endings=False,
+                                           width=67)
+            out = []
+            for line in msg.split('\n'):
+                line = line.strip()
+                if not line:
+                    continue
+                if not line.endswith("."):
+                    line += '.'
+                out.append(line[0].upper() + line[1:])
+            return '\n'.join(wrapper.wrap(' '.join(out)))
+
+        changelog = []
+        for commit_id, patchfile in patches:
+            commit = repo.commit(commit_id)
+            changelog.append(_format_message(commit.message))
+
+        return changelog
 
 def remove_order(filename):
     '''
