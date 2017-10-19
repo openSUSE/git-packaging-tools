@@ -54,9 +54,9 @@ except ImportError as ex:
     yaml = None
 
 try:
-    import pygit2
+    import git
 except ImportError as ex:
-    pygit2 = None
+    git = None
 
 
 ORDERING_FILE = 'patches.orders.txt'
@@ -69,20 +69,25 @@ class Scenario(object):
     '''
     def __init__(self, scenario_path):
         self._scenario = yaml.load(open(scenario_path).read())
-        self._git = Gitworks(self._scenario.get('git'))
+        self._git = Git(self._scenario.get('git'))
 
     def process(self):
-        self._git.prepare(self._scenario['git'])
-        repo = self._git.checkout(self._scenario['git']['branch'])
-        self._git.fetch(repo, self._scenario['git']['branch'])
+        repo = self._git.clone()
+        self._git.fetch(repo)
+        self._git.checkout(repo)
 
         patches_dir = os.path.join(self._scenario['git']['repo-full-path'], '.patches')
         if not os.path.exists(patches_dir):
             os.makedirs(patches_dir)
-        os.chdir(patches_dir)
+
+        print self._git.make_patches(repo, tag='vTest', path=patches_dir)
 
 
-class Gitworks(object):
+class GitOpException(Exception):
+    pass
+
+
+class Git(object):
     '''
     Git commands.
     '''
@@ -105,30 +110,29 @@ class Gitworks(object):
         '''
         return url.split('/')[-1].split('.')[0]
 
-    def prepare(self, repodata):
+    def clone(self):
         '''
         Prepare sources from the repository.
         '''
-        repodata = repodata or {}
-        if not os.path.exists(repodata['repo-full-path']):
-            os.makedirs(repodata['repo-full-path'])
-            pygit2.clone_repository(repodata['url'], repodata['repo-full-path'])
+        if not os.path.exists(self._config['repo-full-path']):
+            os.makedirs(self._config['repo-full-path'])
+            git.Repo.clone_from(self._config['url'], self._config['repo-full-path'])
 
-    def checkout(self, branch_name):
+        return git.Repo(self._config['repo-full-path'])
+
+    def checkout(self, repo, branch_name=None):
         '''
         Checkout an appropriate branch.
 
         :param branch:
         :return:
         '''
-        repo = pygit2.Repository(self._config['repo-full-path'])
-        branch = repo.lookup_branch(branch_name)
-        reference = repo.lookup_reference(branch.name)
-        repo.checkout(reference)
+        branch_name = (branch_name or self._config['branch']).split("/")[-1]
+        for remote in repo.remotes.origin.refs:
+            if remote.name.split("/")[-1] == branch_name:
+                repo.create_head(branch_name).checkout()
 
-        return repo
-
-    def fetch(self, repo, branch_name):
+    def fetch(self, repo):
         '''
         Fetch the repo objects
 
@@ -137,11 +141,43 @@ class Gitworks(object):
         '''
         for remote in repo.remotes:
             remote.fetch()
-            last_commit = repo.lookup_reference('refs/remotes/origin/{0}'.format(branch_name)).target
-            merge_result = repo.merge_analysis(last_commit)
-            if merge_result[0] == pygit2.GIT_MERGE_ANALYSIS_UP_TO_DATE:
-                print "Up to date"
 
+    def _get_physical_patch_id(self, path):
+        '''
+        Extracts a physical ID from the patch file.
+
+        :param path:
+        :return:
+        '''
+        commit_id = None
+        if not os.access(path, os.R_OK):
+            raise GitOpException("Unable to access '{0}' file".format(path))
+        for line in open(path).readlines():
+            line = line.strip().lower().split(' ')
+            if len(line) > 1 and len(line[1]) == 40:
+                commit_id = line[1]
+
+        return commit_id
+
+    def make_patches(self, repo, tag, path=None):
+        '''
+        Make raw patches.
+
+        :param repo:
+        :param tag:
+        :param path:
+        :return:
+        '''
+        paths = repo.git.format_patch(tag, '-o', path).split('\n')
+        for idx, value in enumerate(paths):
+            paths[idx] = (self._get_physical_patch_id(value), value)
+        return paths
+
+    def gen_changelog(self, repo):
+        pass
+        #for commit in repo.iter_commits():
+        #    print commit.message.strip()
+        #    print "-" * 80
 
 def remove_order(filename):
     '''
@@ -442,7 +478,7 @@ def main():
         if args.version:
             print "Version: {0}".format(VERSION)
         if args.scenario:
-            for mod, mod_descr in [(yaml, 'YAML'), (pygit2, 'pygit2')]:
+            for mod, mod_descr in [(yaml, 'YAML'), (git, 'python-git (GitPython)')]:
                 if mod is None:
                     raise Exception("{0} module is not installed.".format(mod_descr))
 
@@ -460,6 +496,7 @@ def main():
                 sys.exit(1)
     except Exception as ex:
         print >> sys.stderr, "Critical error:", ex
+        raise
 
 if __name__ == '__main__':
     main()
