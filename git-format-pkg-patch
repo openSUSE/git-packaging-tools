@@ -83,10 +83,10 @@ class Scenario(object):
         Process.
         :return:
         '''
-        self._sp.add_patch('my-very-cool.patch', doc='Test doc')
-        for a, b, c in self._sp.get_patch_map():
-            print(c)
-            print(a, b)
+        self._sp.add_patch('my-very-cool.patch', doc='Test doc', condition='%{defined}')
+        for p_idx, p_ref, p_file, p_doc, p_cond in self._sp.get_patch_map():
+            print(p_doc, p_idx)
+            print(p_ref, p_file)
 
         for e in self._sp.get_patch_executors():
             print(e)
@@ -152,13 +152,17 @@ class SpecProcess(object):
         :return:
         '''
         if not self._patch_map:
-            for patch_index in ['Patch{0}'.format(idx) for idx, val in enumerate(self._spec.patches_dict, 1)]:
-                patch_name = self._spec.patches_dict[patch_index]
-                self._patch_map.append((patch_index, patch_name, self._get_patch_comment(patch_name)),)
+            conditionals = self._parse_patch_executors()
+            for patch_index, patch_name in enumerate(self._spec.patches_dict, 1):
+                patch_ref = 'Patch{0}'.format(patch_index)
+                patch_name = self._spec.patches_dict[patch_ref]
+                self._patch_map.append((patch_index, patch_ref, patch_name,
+                                        self._get_patch_comment(patch_name),
+                                        conditionals.get('{0}'.format(patch_index))),)
 
         return self._patch_map
 
-    def add_patch(self, filename, doc=None):
+    def add_patch(self, filename, doc=None, condition=None):
         '''
         Add patch to the specfile patchmap.
 
@@ -174,8 +178,28 @@ class SpecProcess(object):
                                            fix_sentence_endings=False,
                                            width=80)
             return os.linesep.join(wrapper.wrap(' '.join([item.strip() for item in msg.split(os.linesep)])))
-        self._patch_map.append(('Patch{0}'.format(len(self.get_patch_map()) + 1),
-                                filename, format_doc(doc) if doc else '# N/A'),)
+        p_idx = len(self.get_patch_map()) + 1
+        self._patch_map.append((p_idx, 'Patch{0}'.format(p_idx),
+                                filename, format_doc(doc) if doc else '# N/A', condition),)
+
+    def _parse_patch_executors(self):
+        '''
+        Parse patch executors from the spec file.
+
+        :return:
+        '''
+        # Get conditions
+        cnd_execs = {}
+        for chunk in os.linesep.join(self._spec_src).split('%endif'):
+            chunk = chunk.split('%if ')[-1]
+            if '%patch' in chunk:
+                chunk = [item for item in chunk.split(os.linesep) if item]
+                if chunk:
+                    condition = chunk.pop(0)
+                    for patch_ref in chunk:
+                        patch_ref = re.sub(r'\D', '', patch_ref.split(' ')[0])
+                        cnd_execs[patch_ref] = condition
+        return cnd_execs
 
     def get_patch_executors(self):
         '''
@@ -183,8 +207,13 @@ class SpecProcess(object):
         :return:
         '''
         executors = []
-        for tag, filename, doc in self.get_patch_map():
-            executors.append('%patch{0} -p1'.format(tag.replace('Patch', '')))
+        for idx, tag, filename, doc, condition in self.get_patch_map():
+            if condition:
+                executors.append('%if {0}'.format(condition))
+                executors.append('%patch{0} -p1'.format(idx))
+                executors.append('%endif')
+            else:
+                executors.append('%patch{0} -p1'.format(idx))
 
         return executors
 
