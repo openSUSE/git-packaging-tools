@@ -59,6 +59,11 @@ try:
 except ImportError as ex:
     git = None
 
+try:
+    import spec
+except ImportError as ex:
+    spec = None
+
 
 ORDERING_FILE = 'patches.orders.txt'
 CHANGES_FILE = 'patches.changes.txt'
@@ -71,9 +76,18 @@ class Scenario(object):
     def __init__(self, scenario_path):
         self._scenario = yaml.load(open(scenario_path).read())
         self._git = GitProcess(self._scenario.get('git'))
-        self._spec = SpecProcess()
+        self._sp = SpecProcess('salt.spec')  # hacking
 
     def process(self):
+        '''
+        Process.
+        :return:
+        '''
+        for p_idx, p_name, p_doc in self._sp.get_patch_map():
+            print(p_doc)
+            print(p_idx, "\t\t", p_name)
+
+    def _process(self):
         repo = self._git.clone()
         self._git.fetch(repo)
         self._git.checkout(repo)
@@ -87,11 +101,58 @@ class Scenario(object):
         self._git.gen_changelog(repo, patches)
 
 
+class SpecException(Exception):
+    '''
+    Spec Exception
+    '''
+
+
 class SpecProcess(object):
     '''
     Spec parsing, extracting objects etc.
 
     '''
+    def __init__(self, spec_path):
+        self._spec_path = spec_path
+        self._spec = spec.Spec.from_file(self._spec_path)
+        self._spec_src = open(spec_path).read().split(os.linesep)
+        self._patch_map = []
+
+    def _get_patch_comment(self, patch_file):
+        '''
+        Get a comment for the particular patch file.
+
+        :param patch_file:
+        :return:
+        '''
+        comment = []
+        idx = 0
+        for line in self._spec_src:
+            if patch_file in line:
+                break
+            idx += 1
+        for idx in reversed(range(idx)):
+            line = self._spec_src[idx]
+            if line.startswith('#'):
+                comment.append(line)
+            else:
+                break
+
+        return os.linesep.join(reversed(comment))
+
+    def get_patch_map(self):
+        '''
+        Get spec patch map along with the comments to each patch,
+        assuming the comment belongs to the patch below it and has
+        no empty lines in between.
+        :return:
+        '''
+        if not self._patch_map:
+            for patch_index in ['Patch{0}'.format(idx) for idx, val in enumerate(self._spec.patches_dict, 1)]:
+                patch_name = self._spec.patches_dict[patch_index]
+                self._patch_map.append((patch_index, patch_name, self._get_patch_comment(patch_name)),)
+
+        return self._patch_map
 
 
 class GitOpException(Exception):
