@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python
 #
 # Copyright (c) 2017, SUSE Linux Products GmbH
 #
@@ -47,400 +47,10 @@ import sys
 import re
 import argparse
 import shutil
-import textwrap
-
-try:
-    import yaml
-except ImportError as ex:
-    yaml = None
-
-try:
-    import git
-except ImportError as ex:
-    git = None
-
-try:
-    import spec
-except ImportError as ex:
-    spec = None
 
 
 ORDERING_FILE = 'patches.orders.txt'
 CHANGES_FILE = 'patches.changes.txt'
-
-
-class Scenario(object):
-    '''
-    Scenario processor.
-    '''
-    def __init__(self, scenario_path):
-        self._scenario = yaml.load(open(scenario_path).read())
-        self._git = GitProcess(self._scenario.get('git'))
-        self._sp = SpecProcess('salt.spec')  # hacking
-
-    def process(self):
-        '''
-        Process.
-        :return:
-        '''
-        self._sp.add_patch('my-very-cool.patch', doc='Test doc', condition='%{defined}')
-        for p_idx, p_ref, p_file, p_doc, p_cond in self._sp.get_patch_map():
-            print(p_doc, p_idx)
-            print(p_ref, p_file)
-
-        for e in self._sp.get_patch_executors():
-            print(e)
-
-    def _process(self):
-        repo = self._git.clone()
-        self._git.fetch(repo)
-        self._git.checkout(repo)
-
-        patches_dir = os.path.join(self._scenario['git']['repo-full-path'], '.patches')
-        if not os.path.exists(patches_dir):
-            os.makedirs(patches_dir)
-        self._git._config['patches-dir'] = patches_dir  # Not good.
-
-        patches = self._git.make_patches(repo, tag='vTest')
-        self._git.gen_changelog(repo, patches)
-
-
-class SpecException(Exception):
-    '''
-    Spec Exception
-    '''
-
-
-class SpecProcess(object):
-    '''
-    Spec parsing, extracting objects etc.
-
-    '''
-    def __init__(self, spec_path):
-        self._spec_path = spec_path
-        self._spec = spec.Spec.from_file(self._spec_path)
-        self._spec_src = open(spec_path).read().split(os.linesep)
-        self._patch_map = []
-
-    def _get_patch_comment(self, patch_file):
-        '''
-        Get a comment for the particular patch file.
-
-        :param patch_file:
-        :return:
-        '''
-        comment = []
-        idx = 0
-        for line in self._spec_src:
-            if patch_file in line:
-                break
-            idx += 1
-        for idx in reversed(range(idx)):
-            line = self._spec_src[idx]
-            if line.startswith('#'):
-                comment.append(line)
-            else:
-                break
-
-        return os.linesep.join(reversed(comment))
-
-    def get_patch_map(self):
-        '''
-        Get spec patch map along with the comments to each patch,
-        assuming the comment belongs to the patch below it and has
-        no empty lines in between.
-        :return:
-        '''
-        if not self._patch_map:
-            conditionals = self._parse_patch_executors()
-            for patch_index, patch_name in enumerate(self._spec.patches_dict, 1):
-                patch_ref = 'Patch{0}'.format(patch_index)
-                patch_name = self._spec.patches_dict[patch_ref]
-                self._patch_map.append((patch_index, patch_ref, patch_name,
-                                        self._get_patch_comment(patch_name),
-                                        conditionals.get('{0}'.format(patch_index))),)
-
-        return self._patch_map
-
-    def add_patch(self, filename, doc=None, condition=None):
-        '''
-        Add patch to the specfile patchmap.
-
-        :param filename:
-        :param doc:
-        :return:
-        '''
-        def format_doc(msg):
-            wrapper = textwrap.TextWrapper(initial_indent='# ',
-                                           subsequent_indent='# ',
-                                           break_on_hyphens=True,
-                                           break_long_words=True,
-                                           fix_sentence_endings=False,
-                                           width=80)
-            return os.linesep.join(wrapper.wrap(' '.join([item.strip() for item in msg.split(os.linesep)])))
-        p_idx = len(self.get_patch_map()) + 1
-        self._patch_map.append((p_idx, 'Patch{0}'.format(p_idx),
-                                filename, format_doc(doc) if doc else '# N/A', condition),)
-
-    def _parse_patch_executors(self):
-        '''
-        Parse patch executors from the spec file.
-
-        :return:
-        '''
-        # Get conditions
-        cnd_execs = {}
-        for chunk in os.linesep.join(self._spec_src).split('%endif'):
-            chunk = chunk.split('%if ')[-1]
-            if '%patch' in chunk:
-                chunk = [item for item in chunk.split(os.linesep) if item]
-                if chunk:
-                    condition = chunk.pop(0)
-                    for patch_ref in chunk:
-                        patch_ref = re.sub(r'\D', '', patch_ref.split(' ')[0])
-                        cnd_execs[patch_ref] = condition
-        return cnd_execs
-
-    def get_patch_executors(self):
-        '''
-        Return a snippet of patch executors.
-        :return:
-        '''
-        executors = []
-        for idx, tag, filename, doc, condition in self.get_patch_map():
-            if condition:
-                executors.append('%if {0}'.format(condition))
-                executors.append('%patch{0} -p1'.format(idx))
-                executors.append('%endif')
-            else:
-                executors.append('%patch{0} -p1'.format(idx))
-
-        return executors
-
-
-class GitOpException(Exception):
-    pass
-
-
-class GitProcess(object):
-    '''
-    Git commands.
-    '''
-    IDX_PATCHES_FILE = '.patches-order'
-    LOG_PATCHES_FILE = '.patches-changes'
-
-    def __init__(self, config):
-        self._config = config
-        if not self._config:
-            raise Exception('Git is not configured!')
-
-        for keycheck in ['repo-path', 'branch', 'url']:
-            if keycheck not in self._config:
-                raise Exception('The "{0}" directive is missing'.format(keycheck))
-        name = self.get_repo_name(self._config['url'])
-        self._config['repo-full-path'] = os.path.join(self._config['repo-path'], name)
-
-    def get_repo_name(self, url):
-        '''
-        Get repository name from the url.
-        :param url:
-        :return:
-        '''
-        return url.split('/')[-1].split('.')[0]
-
-    def clone(self):
-        '''
-        Prepare sources from the repository.
-        '''
-        if not os.path.exists(self._config['repo-full-path']):
-            os.makedirs(self._config['repo-full-path'])
-            git.Repo.clone_from(self._config['url'], self._config['repo-full-path'])
-
-        return git.Repo(self._config['repo-full-path'])
-
-    def checkout(self, repo, branch_name=None):
-        '''
-        Checkout an appropriate branch.
-
-        :param branch:
-        :return:
-        '''
-        branch_name = (branch_name or self._config['branch']).split("/")[-1]
-        for remote in repo.remotes.origin.refs:
-            if remote.name.split("/")[-1] == branch_name:
-                repo.create_head(branch_name).checkout()
-                git.Repo.git.pull('origin', branch_name)
-
-    def fetch(self, repo):
-        '''
-        Fetch the repo objects
-
-        :param repo:
-        :return:
-        '''
-        for remote in repo.remotes:
-            remote.fetch()
-
-    def _unique(self, fname):
-        '''
-        Change name to the unique, in case it isn't.
-
-        :param fname:
-        :param use:
-        :return:
-        '''
-        fname = fname.split('.')
-        if '-' not in fname[0]:
-            fname[0] = '{0}-{1}'.format(fname[0], 1)
-        else:
-            chnk = fname[0].split('-')
-            try:
-                fname[0] = '{0}-{1}'.format('-'.join(chnk[:-1]), int(chnk[-1]) + 1)
-            except ValueError as err:
-                fname[0] = '{0}-{1}'.format(fname[0], 1)  # Filename is not in "str-int", but "str-str".
-
-        return '.'.join(fname)
-
-    def _remove_filename_order(self, filename):
-        '''
-        Remove order of the patch filename.
-
-        Git formats patches: XXXX-filename.patch
-        This function removes the "XXXX-" part, if any.
-        '''
-        b_fname = os.path.basename(filename)
-        dir_name = os.path.dirname(filename)
-
-        ordnum = b_fname.split('-')[0]
-        if ordnum and not re.sub(r'[0-9]', '', ordnum):
-            new_filename = os.path.join(dir_name, b_fname.split('-', 1)[-1]).lower()
-            ordnum = int(ordnum)
-        else:
-            new_filename = filename
-            ordnum = None
-
-        return ordnum, filename, new_filename
-
-    def _remove_body_order(self, src_file, dst_file, use_unique=False):
-        '''
-        Remove subject inside the patch.
-
-        Git format patches inside with the following subject format:
-        Subject: [PATCH X/Y] .........
-
-        This function removes [PATCH X/Y] part, if any. In Git format-patches one can
-        add "-N" flag, so then subject won't have these numbers, but just "[PATCH]".
-        In this case we leave it out.
-        '''
-
-        if os.path.exists(dst_file) and not use_unique:
-            raise IOError('the file {0} exists'.format(dst_file))
-
-        if use_unique:
-            dst_file = self._unique(dst_file)
-        dst = open(dst_file, 'w')
-        for fline in open(src_file).read().split(os.linesep):
-            fline_tk = re.split(r'\s+\[PATCH \d+/\d+\]\s+', fline)
-            if len(fline_tk) == 2 and fline_tk[0] == 'Subject:':
-                fline = ' [PATCH] '.join(fline_tk)
-            dst.write('{0}\n'.format(fline))
-        dst.close()
-        if os.path.exists(src_file):
-            os.unlink(src_file)
-
-    def _pack_order(self, paths):
-        '''
-        Remove order from the patches (subject, body, filename etc) and create an index file nearby.
-        :param paths:
-        :return:
-        '''
-
-        idx_file = open(os.path.join(self._config['patches-dir'], self.IDX_PATCHES_FILE), 'w')
-        idx_file.write('# Patches involved:\n')
-        for commit_id, patch_pth in paths:
-            idx, current_fname, new_fname = self._remove_filename_order(patch_pth)
-            self._remove_body_order(current_fname, new_fname)
-            idx_file.write('Patch{0}:\t\t{1}\n'.format(idx, os.path.basename(new_fname)))
-        idx_file.write('\n# Patching process:\n')
-        for idx in range(len(paths)):
-            idx_file.write('%patch{0} -p1\n'.format(idx + 1))
-        idx_file.close()
-
-    def _get_physical_patch_id(self, path):
-        '''
-        Extracts a physical ID from the patch file.
-
-        :param path:
-        :return:
-        '''
-        commit_id = None
-        if not os.access(path, os.R_OK):
-            raise GitOpException("Unable to access '{0}' file".format(path))
-        for line in open(path).readlines():
-            line = line.strip().lower().split(' ')
-            if len(line) > 1 and len(line[1]) == 40:
-                commit_id = line[1]
-
-        return commit_id
-
-    def make_patches(self, repo, tag, path=None):
-        '''
-        Make raw patches.
-
-        :param repo:
-        :param tag:
-        :param path:
-        :return:
-        '''
-        path = path or self._config.get('patches-dir', './')
-        paths = repo.git.format_patch(tag, '-o', path).split('\n')
-        for idx, p_pth in enumerate(paths):
-            paths[idx] = (self._get_physical_patch_id(p_pth), p_pth)
-
-        self._pack_order(paths)
-        return paths
-
-    def gen_changelog(self, repo, patches):
-        '''
-        Generate chanelog.
-
-        :param repo:
-        :param patches:
-        :return:
-        '''
-        def _format_message(msg):
-            '''
-            Format message from anything to a changelog-compatible.
-
-            :param msg:
-            :return:
-            '''
-            wrapper = textwrap.TextWrapper(initial_indent='- ',
-                                           subsequent_indent='  ',
-                                           break_on_hyphens=True,
-                                           break_long_words=True,
-                                           fix_sentence_endings=False,
-                                           width=67)
-            out = []
-            for line in msg.split('\n'):
-                line = line.strip()
-                if not line:
-                    continue
-                if not line.endswith("."):
-                    line += '.'
-                out.append(line[0].upper() + line[1:])
-            return '\n'.join(wrapper.wrap(' '.join(out)))
-
-        changelog = []
-        for commit_id, patchfile in patches:
-            commit = repo.commit(commit_id)
-            changelog.append(_format_message(commit.message))
-
-        changelog_file = open(os.path.join(self._config['patches-dir'], self.LOG_PATCHES_FILE), 'w')
-        changelog_file.write(os.linesep.join(changelog) + os.linesep)
-        changelog_file.close()
-
-        return changelog
 
 
 def remove_order(filename):
@@ -495,7 +105,7 @@ def git_format_patch(tag):
         if patch.split('.')[-1] == 'patch':
             patches += 1
 
-    print("Patches fetched: {0}".format(patches))
+    print "Patches fetched: {0}".format(patches)
 
 
 def get_diff_contents(data):
@@ -527,7 +137,7 @@ def unique(fname):
         chnk = fname[0].split('-')
         try:
             fname[0] = '{0}-{1}'.format('-'.join(chnk[:-1]), int(chnk[-1]) + 1)
-        except ValueError as err:
+        except ValueError, err:
             fname[0] = '{0}-{1}'.format(fname[0], 1)  # Filename is not in "str-int", but "str-str".
 
     return '.'.join(fname)
@@ -597,8 +207,8 @@ def do_remix_spec(args):
     for o_line in open(args.ordering).read().split(os.linesep):
         if re.match(r'^[Pp]atch[0-9]+:', o_line):
             ref, pname = filter(None, o_line.split(' '))
-            print(os.linesep.join(patchset.get(pname) or ['# Description N/A']))
-            print(ref.ljust(15), pname)
+            print os.linesep.join(patchset.get(pname) or ['# Description N/A'])
+            print ref.ljust(15), pname
 
 
 def do_create_patches(args):
@@ -609,13 +219,13 @@ def do_create_patches(args):
 
     if not args.existing:
         if os.listdir(current_dir):
-            print("Error: this directory has to be empty!")
+            print "Error: this directory has to be empty!"
             sys.exit(1)
 
         git_format_patch(args.format)
     else:
         if not [fname for fname in os.listdir(current_dir) if fname.endswith('.patch')]:
-            print("Error: can't find a single patch in {0} to work with!".format(current_dir))
+            print "Error: can't find a single patch in {0} to work with!".format(current_dir)
             sys.exit(1)
 
     ord_fh = open(args.ordering or ORDERING_FILE, 'w')
@@ -625,7 +235,7 @@ def do_create_patches(args):
     patches = 0
     for fname in os.listdir(current_dir):
         if fname.split('.')[-1] == 'patch':
-            print("Preparing", fname)
+            print "Preparing", fname
             order, nfname = remove_order(fname)
             if args.index is not None:
                 order += args.index
@@ -645,14 +255,15 @@ def do_create_patches(args):
 
     ord_fh.close()
 
-    print("\nRe-formatted {0} patch{1}".format(patches, patches > 1 and 'es' or ''))
+    print
+    print "Re-formatted {0} patch{1}".format(patches, patches > 1 and 'es' or '')
 
 
 def do_update_patches(args):
     '''
     Update patches on the target package source.
     '''
-    print("Updating packages from {0} directory".format(args.update))
+    print "Updating packages from {0} directory".format(args.update)
     added = []
     removed = []
     changed = []
@@ -670,21 +281,21 @@ def do_update_patches(args):
                 current_patches[os.path.basename(fname)] = False
                 n_fname = os.path.basename(fname)
                 if not os.path.exists(n_fname):
-                    print("Adding {0} patch".format(fname))
+                    print "Adding {0} patch".format(fname)
                     shutil.copyfile(fname, os.path.join(os.path.abspath("."), n_fname))
                     added.append(n_fname)
                 else:
                     if get_diff_contents(open(fname).read()) != get_diff_contents(open(n_fname).read()):
                         if args.changed:
-                            print("Replacing {0} patch".format(n_fname))
+                            print "Replacing {0} patch".format(n_fname)
                             os.unlink(n_fname)
                             shutil.copyfile(fname, os.path.join(os.path.abspath("."), n_fname))
                             changed.append(n_fname)
                         else:
-                            print("WARNING: Patches {0} and {1} are different!".format(fname, n_fname))
+                            print "WARNING: Patches {0} and {1} are different!".format(fname, n_fname)
 
     for fname in sorted([patch_name for patch_name, is_dead in current_patches.items() if is_dead]):
-        print("Removing {0} patch".format(fname))
+        print "Removing {0} patch".format(fname)
         os.unlink(fname)
         removed.append(fname)
 
@@ -698,7 +309,7 @@ def do_update_patches(args):
         print >> changes
 
     if not removed and not added and not changes:
-        print("No files has been changed")
+        print "No files has been changed"
 
     changes.close()
 
@@ -727,10 +338,6 @@ def main():
                         help='work with already formatted patches from Git')
     parser.add_argument('-v', '--version', action='store_const', const=True,
                         help='show version')
-    parser.add_argument('-p', '--scenario', action='store', const=None,
-                        help='Automation scenario config file (that thing in YAML, you know...)')
-    parser.add_argument('-d', '--debug', action='store_const', const=True,
-                        help='Debug (show actual traceback)')
     args = parser.parse_args()
 
     try:
@@ -741,28 +348,18 @@ def main():
                 raise Exception('Value "{0}" should be a digit'.format(args.index))
 
         if args.version:
-            print("Version: {0}".format(VERSION))
-        if args.scenario:
-            for mod, mod_descr in [(yaml, 'YAML'), (git, 'python-git (GitPython)')]:
-                if mod is None:
-                    raise Exception("{0} module is not installed.".format(mod_descr))
-
-            scenario = Scenario(args.scenario)
-            scenario.process()
+            print "Version: {0}".format(VERSION)
+        elif args.spec:
+            do_remix_spec(args)
+        elif args.update and not args.format:
+            do_update_patches(args)
+        elif (args.format and not args.update) or args.existing:
+            do_create_patches(args)
         else:
-            if args.spec:
-                do_remix_spec(args)
-            elif args.update and not args.format:
-                do_update_patches(args)
-            elif (args.format and not args.update) or args.existing:
-                do_create_patches(args)
-            else:
-                parser.print_help()
-                sys.exit(1)
+            parser.print_help()
+            sys.exit(1)
     except Exception as ex:
-        print("Critical error:", ex, file=sys.stderr)
-        if args.debug:
-            raise
+        print >> sys.stderr, "Critical error:", ex
 
 if __name__ == '__main__':
     main()
