@@ -83,9 +83,13 @@ class Scenario(object):
         Process.
         :return:
         '''
-        for p_idx, p_name, p_doc in self._sp.get_patch_map():
-            print(p_doc)
-            print(p_idx, "\t\t", p_name)
+        self._sp.add_patch('my-very-cool.patch', doc='Test doc')
+        for a, b, c in self._sp.get_patch_map():
+            print(c)
+            print(a, b)
+
+        for e in self._sp.get_patch_executors():
+            print(e)
 
     def _process(self):
         repo = self._git.clone()
@@ -153,6 +157,36 @@ class SpecProcess(object):
                 self._patch_map.append((patch_index, patch_name, self._get_patch_comment(patch_name)),)
 
         return self._patch_map
+
+    def add_patch(self, filename, doc=None):
+        '''
+        Add patch to the specfile patchmap.
+
+        :param filename:
+        :param doc:
+        :return:
+        '''
+        def format_doc(msg):
+            wrapper = textwrap.TextWrapper(initial_indent='# ',
+                                           subsequent_indent='# ',
+                                           break_on_hyphens=True,
+                                           break_long_words=True,
+                                           fix_sentence_endings=False,
+                                           width=80)
+            return os.linesep.join(wrapper.wrap(' '.join([item.strip() for item in msg.split(os.linesep)])))
+        self._patch_map.append(('Patch{0}'.format(len(self.get_patch_map()) + 1),
+                                filename, format_doc(doc) if doc else '# N/A'),)
+
+    def get_patch_executors(self):
+        '''
+        Return a snippet of patch executors.
+        :return:
+        '''
+        executors = []
+        for tag, filename, doc in self.get_patch_map():
+            executors.append('%patch{0} -p1'.format(tag.replace('Patch', '')))
+
+        return executors
 
 
 class GitOpException(Exception):
