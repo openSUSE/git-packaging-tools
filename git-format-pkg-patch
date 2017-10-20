@@ -269,6 +269,7 @@ class GitProcess(object):
         for remote in repo.remotes.origin.refs:
             if remote.name.split("/")[-1] == branch_name:
                 repo.create_head(branch_name).checkout()
+                git.Repo.git.pull('origin', branch_name)
 
     def fetch(self, repo):
         '''
