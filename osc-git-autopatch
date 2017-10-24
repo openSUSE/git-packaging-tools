@@ -236,7 +236,7 @@ class GitProcess(object):
     IDX_PATCHES_FILE = '.patches-order'
     LOG_PATCHES_FILE = '.patches-changes'
 
-    def __init__(self, config):
+    def __init__(self, config, flush_patches_dir=False):
         self._config = config
         if not self._config:
             raise Exception('Git is not configured!')
@@ -246,6 +246,22 @@ class GitProcess(object):
                 raise Exception('The "{0}" directive is missing'.format(keycheck))
         name = self.get_repo_name(self._config['url'])
         self._config['repo-full-path'] = os.path.join(self._config['repo-path'], name)
+        self._patch_map = []
+
+        patches_dir = os.path.join(self._config['repo-full-path'], '.patches')
+        if not os.path.exists(patches_dir):
+            os.makedirs(patches_dir)
+        self._config['patches-dir'] = patches_dir
+        if flush_patches_dir:
+            self._flush_patches_dir()
+
+    def _flush_patches_dir(self):
+        '''
+        Flush patches directory.
+        :return:
+        '''
+        for file_name in os.listdir(self._config['patches-dir']):
+            os.unlink(os.path.join(self._config['patches-dir'], file_name))
 
     def get_repo_name(self, url):
         '''
