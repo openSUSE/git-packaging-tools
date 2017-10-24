@@ -407,6 +407,25 @@ class GitProcess(object):
 
         return commit_id
 
+    def get_patch_map(self, tag=None, clean=False):
+        '''
+        Get map of the patches in this repo.
+        :return:
+        '''
+        if self._patch_map and not clean:
+            return self._patch_map
+
+        tag = tag or self._config.get('tag', None)
+        if not tag:
+            raise GitOpException('Tag needs to be specified till what to generate patches. '
+                                 'Otherwise I will flood you!')
+        repo = self.clone()
+        self.checkout(repo)
+        self.fetch(repo)
+        self._patch_map = self.make_patches(repo, tag)
+
+        return self._patch_map
+
     def make_patches(self, repo, tag, path=None):
         '''
         Make raw patches.
