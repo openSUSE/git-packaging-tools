@@ -746,66 +746,56 @@ def do_update_patches(args):
     changes.close()
 
 
+def get_cli_params():
+    parser = argparse.ArgumentParser(description='Git-based patch automation service for packages')
+    parser.add_argument('-r', '--repo', action='store', const=None,
+                        help='Git repository to generate patches from')
+    parser.add_argument('-f', '--format', action='store', const=None,
+                        help='specify tag or range of commits for patches to be formatted')
+    parser.add_argument('-s', '--spec', action='store', const=None,
+                        help='specify package spec file')
+    parser.add_argument('-v', '--version', action='store_const', const=True,
+                        help='show version')
+    parser.add_argument('-c', '--config', action='store', const=None,
+                        help='Automation config file')
+    parser.add_argument('-d', '--debug', action='store_const', const=True,
+                        help='Debug (show actual traceback)')
+    args = parser.parse_args()
+    return args, parser
+
+
 def main():
     '''
     Main app.
     '''
-    VERSION = '0.2'
-    parser = argparse.ArgumentParser(description='Git patch formatter for RPM packages')
-    parser.add_argument('-u', '--update', action='store', const=None,
-                        help='update current patches with the destination path')
-    parser.add_argument('-f', '--format', action='store', const=None,
-                        help='specify tag or range of commits for patches to be formatted')
-    parser.add_argument('-o', '--ordering', action='store', const=None,
-                        help='specify ordering spec inclusion file. Default: {0}'.format(ORDERING_FILE))
-    parser.add_argument('-x', '--index', action='store', const=None,
-                        help='specify start ordering index. Default: 0')
-    parser.add_argument('-s', '--spec', action='store', const=None,
-                        help='remix spec file and extract sources with their comments to match new patch ordering')
-    parser.add_argument('-i', '--increment', action='store_const', const=True,
-                        help='use increments for unique names when patch commits repeated')
-    parser.add_argument('-c', '--changed', action='store_const', const=True,
-                        help='update also changed files with the content')
-    parser.add_argument('-e', '--existing', action='store_const', const=True,
-                        help='work with already formatted patches from Git')
-    parser.add_argument('-v', '--version', action='store_const', const=True,
-                        help='show version')
-    parser.add_argument('-p', '--scenario', action='store', const=None,
-                        help='Automation scenario config file (that thing in YAML, you know...)')
-    parser.add_argument('-d', '--debug', action='store_const', const=True,
-                        help='Debug (show actual traceback)')
-    args = parser.parse_args()
-
+    VERSION = '0.1'
+    args, parser = get_cli_params()
     try:
-        if args.index:
-            try:
-                args.index = int(args.index)
-            except ValueError as ex:
-                raise Exception('Value "{0}" should be a digit'.format(args.index))
+        # Check environment
+        for mod, mod_descr in [(yaml, 'YAML'), (wtp, 'Patch parser (whatthepatch)'),
+                               (git, 'python-git (GitPython)')]:
+            if mod is None:
+                raise Exception("{0} module is not installed.".format(mod_descr))
 
         if args.version:
             print("Version: {0}".format(VERSION))
-        if args.scenario:
-            for mod, mod_descr in [(yaml, 'YAML'), (git, 'python-git (GitPython)')]:
-                if mod is None:
-                    raise Exception("{0} module is not installed.".format(mod_descr))
+            sys.exit(1)
 
-            scenario = Scenario(args.scenario)
-            scenario.process()
+        config = {}
+        if args.config:
+            config = yaml.load(open(args.config).read())
+
+        if not config:
+            parser.print_help()
         else:
-            if args.spec:
-                do_remix_spec(args)
-            elif args.update and not args.format:
-                do_update_patches(args)
-            elif (args.format and not args.update) or args.existing:
-                do_create_patches(args)
-            else:
-                parser.print_help()
-                sys.exit(1)
+            mixer = Git2OSCMixer(config)
+            mixer.process()
+
     except Exception as ex:
         print("Critical error:", ex, file=sys.stderr)
         if args.debug:
             raise
+
 
 if __name__ == '__main__':
     main()
