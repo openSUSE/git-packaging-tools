@@ -64,6 +64,11 @@ try:
 except ImportError as ex:
     spec = None
 
+try:
+    import whatthepatch as wtp
+except ImportError as ex:
+    wtp = None
+
 
 ORDERING_FILE = 'patches.orders.txt'
 CHANGES_FILE = 'patches.changes.txt'
