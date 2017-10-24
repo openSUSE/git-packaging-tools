@@ -403,6 +403,7 @@ class GitProcess(object):
             line = line.strip().lower().split(' ')
             if len(line) > 1 and len(line[1]) == 40:
                 commit_id = line[1]
+                break
 
         return commit_id
 
