@@ -74,26 +74,96 @@ ORDERING_FILE = 'patches.orders.txt'
 CHANGES_FILE = 'patches.changes.txt'
 
 
-class Scenario(object):
+class Git2OSCMixer(object):
     '''
     Scenario processor.
     '''
-    def __init__(self, scenario_path):
     def __init__(self, config):
         self._scenario = config
         self._git = GitProcess(self._scenario.get('git'),
                                flush_patches_dir=self._scenario.get('package', {}).get('flush-old-patches', False))
         self._sp = SpecProcess(self._scenario['package']['spec'])
 
+        self.DIRECTIVES = {
+            'patch': {
+                'apply': self.__block_patch_apply,
+                'define': self.__block_patch_define,
+            }
+        }
+
+    def __replace(self, path, blockset):
+        '''
+        Replace block in the marked template.
+
+        :param snippet:
+        :param directive:
+        :return:
+        '''
+        with open(path) as fh:
+            data = fh.read()
+
+        out = []
+        for block, directive in blockset:
+            _data = data.split('# @@ oscgitpak: {0} >>'.format(directive))
+            out.append(_data[0].strip())
+            out.append('')
+            out.append(block)
+            out.append('')
+            out.append(_data[1].split('# @@ oscgitpak: {0} <<'.format(directive))[-1].strip())
+            data = os.linesep.join(out)
+            out = []
+
+        fh = open(path + ".new", "w")
+        fh.write(data)
+        fh.close()
+
+    def __block(self, directive):
+        '''
+        Get snippet of the block
+        :param directive:
+        :return:
+        '''
+        snippet = ['# @@ oscgitpak: {0} >>'.format(directive)]
+
+        if directive == 'patch.define':
+            for p_idx, p_ref, p_file, p_doc, p_cond in self._sp.get_patch_map():
+                snippet.append(p_doc)
+                snippet.append('{0: <16}{1}'.format((p_ref + ':'), p_file))
+        elif directive == 'patch.apply':
+            for exc in self._sp.get_patch_executors():
+                snippet.append(exc)
+
+        snippet.append('# @@ oscgitpak: {0} <<'.format(directive))
+        return os.linesep.join(snippet)
+
+    def __block_patch_apply(self):
+        '''
+        Returns a snippet for applying patches
+        :return:
+        '''
+        return self.__block('patch.apply')
+
+    def __block_patch_define(self):
+        '''
+        Returns a snippet for defining patches
+        :return:
+        '''
+        return self.__block('patch.define')
+
     def process(self):
         '''
         Process.
         :return:
         '''
-        self._sp.add_patch('my-very-cool.patch', doc='Test doc', condition='%{defined}')
-        for p_idx, p_ref, p_file, p_doc, p_cond in self._sp.get_patch_map():
-            print(p_doc, p_idx)
-            print(p_ref, p_file)
+        new_patches, changed_patches, removed_patches = self.get_diff_patches()
+        for patchname in new_patches:
+            self._sp.add_patch(patchname, doc=None, condition=None)  # TODO: Get doc and conditions from the doc
+        for patchname in removed_patches:
+            self._sp.remove_patch(patchname)
+
+        self.__replace(self._sp._spec_path,
+                       ((self.__block_patch_define(), 'patch.define'),
+                        (self.__block_patch_apply(), 'patch.apply'),))
 
     def _is_diff_patch(self, a_patch, b_patch, ignore_commit_id=True):
         '''
