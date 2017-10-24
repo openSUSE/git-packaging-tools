@@ -451,15 +451,18 @@ class GitProcess(object):
 
         n_paths = []
         idx_file = open(os.path.join(self._config['patches-dir'], self.IDX_PATCHES_FILE), 'w')
-        idx_file.write('# Patches involved:\n')
+        idx_file.write('# @@ oscgitpak: patch.define >>\n')
         for commit_id, patch_pth in paths:
             idx, current_fname, new_fname = self._remove_filename_order(patch_pth)
             self._remove_body_order(current_fname, new_fname)
             idx_file.write('Patch{0: <10}{1}\n'.format(str(idx) + ':', os.path.basename(new_fname)))
             n_paths.append((commit_id, new_fname,))
-        idx_file.write('\n# Patching process:\n')
+        idx_file.write('# @@ oscgitpak: patch.define <<\n')
+        idx_file.write('# ---\n')
+        idx_file.write('# @@ oscgitpak: patch.apply >>\n')
         for idx in range(len(paths)):
             idx_file.write('%patch{0} -p1\n'.format(idx + 1))
+        idx_file.write('# @@ oscgitpak: patch.apply <<\n')
         idx_file.close()
 
         return n_paths
