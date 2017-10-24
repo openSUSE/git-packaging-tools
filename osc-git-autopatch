@@ -199,7 +199,7 @@ class SpecProcess(object):
             idx += 1
         for idx in reversed(range(idx)):
             line = self._spec_src[idx]
-            if line.startswith('#'):
+            if line.startswith('#') and '@@ oscgitpak' not in line:
                 comment.append(line)
             else:
                 break
