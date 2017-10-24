@@ -384,7 +384,7 @@ class GitProcess(object):
         for commit_id, patch_pth in paths:
             idx, current_fname, new_fname = self._remove_filename_order(patch_pth)
             self._remove_body_order(current_fname, new_fname)
-            idx_file.write('Patch{0}:\t\t{1}\n'.format(idx, os.path.basename(new_fname)))
+            idx_file.write('Patch{0: <10}{1}\n'.format(str(idx) + ':', os.path.basename(new_fname)))
             n_paths.append((commit_id, new_fname,))
         idx_file.write('\n# Patching process:\n')
         for idx in range(len(paths)):
