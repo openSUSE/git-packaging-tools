@@ -859,10 +859,7 @@ def main():
             print("Version: {0}".format(VERSION))
             sys.exit(1)
 
-        config = {}
-        if args.config:
-            config = yaml.load(open(args.config).read())
-
+        config = yaml.load(open(args.config or '_gitpak').read())
         if not config:
             parser.print_help()
         else:
