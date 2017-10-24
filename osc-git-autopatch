@@ -133,7 +133,6 @@ class Scenario(object):
             fname = os.path.basename(p_path)
             if fname not in pkg_filenames:
                 n_pt.append(fname)
-                print("Added:", fname)
                 continue
             # Do diff check here
             git_patch = os.path.join(self._git._config['patches-dir'], fname)
@@ -145,18 +144,14 @@ class Scenario(object):
                 pkg_p_patch = wtp.parse_patch(ph.read())
             if self._is_diff_patch(git_p_patch, pkg_p_patch):
                 c_pt.append(fname)
-                print("Changed:", fname)
 
         git_filenames = [os.path.basename(p_set[1]) for p_set in git_patches]
         for p_set in pkg_patches:
             idx, ref, fname, doc, cond = p_set
             if fname not in git_filenames:
                 r_pt.append(fname)
-                print("Removed:", fname)
 
         return n_pt, c_pt, r_pt
-        for e in self._sp.get_patch_executors():
-            print(e)
 
     def _process(self):
         repo = self._git.clone()
