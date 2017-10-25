@@ -167,11 +167,27 @@ class Git2OSCMixer(object):
             if os.path.exists(fname):
                 os.unlink(fname)
 
+    def check_spec_compat(self):
+        '''
+        Check if spec file is compatible.
+        :return:
+        '''
+        compat = 0
+        for line in self._sp._spec_src:
+            for directive in ['patch.apply', 'patch.define']:
+                directive = '@@ {0}: {1} '.format(self.TAG, directive)
+                for block in ['>>', '<<']:
+                    if directive + block in line:
+                        compat += 1
+        return compat == 4
+
     def process(self):
         '''
         Process.
         :return:
         '''
+        if not self.check_spec_compat():
+            raise Exception('Spec file is not compatible for this process.')
         new_patches, changed_patches, removed_patches = self.get_diff_patches()
         for patchname in new_patches:
             self._sp.add_patch(patchname, doc=None, condition=None)  # TODO: Get doc and conditions from the doc
