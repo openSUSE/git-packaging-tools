@@ -91,7 +91,7 @@ class Git2OSCMixer(object):
             }
         }
 
-    def __replace(self, path, blockset):
+    def update_specfile(self, path, blockset):
         '''
         Replace block in the marked template.
 
@@ -161,9 +161,9 @@ class Git2OSCMixer(object):
         for patchname in removed_patches:
             self._sp.remove_patch(patchname)
 
-        self.__replace(self._sp._spec_path,
-                       ((self.__block_patch_define(), 'patch.define'),
-                        (self.__block_patch_apply(), 'patch.apply'),))
+        self.update_specfile(self._sp._spec_path,
+                             ((self.__block_patch_define(), 'patch.define'),
+                              (self.__block_patch_apply(), 'patch.apply'),))
 
     def _is_diff_patch(self, a_patch, b_patch, ignore_commit_id=True):
         '''
