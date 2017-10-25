@@ -78,6 +78,7 @@ class Git2OSCMixer(object):
     '''
     Scenario processor.
     '''
+    TAG = 'osc-gitpak'
     def __init__(self, config):
         self._scenario = config
         self._git = GitProcess(self._scenario.get('git'),
@@ -150,6 +151,22 @@ class Git2OSCMixer(object):
         '''
         return self.__block('patch.define')
 
+    def update_patch_files(self, new, changed, removed):
+        '''
+        Update patch files in the packages.
+        This will remove deleted, add new and update changed patches.
+
+        :return:
+        '''
+        print(new, changed, removed)
+        for f_name in new + changed:
+            shutil.copy(os.path.join(self._git._config['patches-dir'], f_name),
+                        os.path.abspath(os.path.dirname(self._sp._spec_path)))
+        for fname in removed:
+            fname = os.path.join(os.path.dirname(self._sp._spec_path), fname)
+            if os.path.exists(fname):
+                os.unlink(fname)
+
     def process(self):
         '''
         Process.
@@ -164,6 +181,7 @@ class Git2OSCMixer(object):
         self.update_specfile(self._sp._spec_path,
                              ((self.__block_patch_define(), 'patch.define'),
                               (self.__block_patch_apply(), 'patch.apply'),))
+        self.update_patch_files(new=new_patches, changed=changed_patches, removed=removed_patches)
 
     def _is_diff_patch(self, a_patch, b_patch, ignore_commit_id=True):
         '''
