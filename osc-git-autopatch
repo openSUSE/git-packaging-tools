@@ -133,6 +133,8 @@ class Git2OSCMixer(object):
         fh = open(path + ".new", "w")
         fh.write(data)
         fh.close()
+        self.log.debug('Updated specfile with the new patch definitions')
+
 
     def __block(self, directive):
         '''
@@ -216,15 +218,12 @@ class Git2OSCMixer(object):
             self.log.debug('Changed patch: "{0}"'.format(patchname))
         for patchname in new_patches:
             self._sp.add_patch(patchname, doc=None, condition=None)  # TODO: Get doc and conditions from the doc
-            self.log.debug('Added "{0}"'.format(patchname))
         for patchname in removed_patches:
             self._sp.remove_patch(patchname)
-            self.log.debug('Removed "{0}"'.format(patchname))
 
         self.update_specfile(self._sp._spec_path,
                              ((self.__block_patch_define(), 'patch.define'),
                               (self.__block_patch_apply(), 'patch.apply'),))
-        self.log.debug('Updated specfile with the new patch definitions')
         self.update_patch_files(new=new_patches, changed=changed_patches, removed=removed_patches)
 
     def _is_diff_patch(self, a_patch, b_patch, ignore_commit_id=True):
@@ -376,6 +375,7 @@ class SpecProcess(object):
                 p_idx += 1
                 p_map.append((p_idx, 'Patch{0}'.format(p_idx), fn, doc, cond),)
         self._patch_map = p_map
+        self.log.debug('Removed "{0}"'.format(filename))
 
     def add_patch(self, filename, doc=None, condition=None):
         '''
@@ -396,6 +396,7 @@ class SpecProcess(object):
         p_idx = len(self.get_patch_map()) + 1
         self._patch_map.append((p_idx, 'Patch{0}'.format(p_idx),
                                 filename, format_doc(doc) if doc else '# N/A', condition),)
+        self.log.debug('Added "{0}"'.format(filename))
 
     def _parse_patch_executors(self):
         '''
