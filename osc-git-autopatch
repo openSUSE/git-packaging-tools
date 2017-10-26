@@ -99,7 +99,7 @@ class Git2OSCMixer(object):
         self.log = log
         self._git = GitProcess(self._scenario.get('git'), log=log,
                                flush_patches_dir=self._scenario.get('package', {}).get('flush-old-patches', False))
-        self._sp = SpecProcess(self._scenario['package']['spec'], log=log)
+        self._sp = SpecProcess(self._scenario['package'], log=log)
 
         self.DIRECTIVES = {
             'patch': {
@@ -303,7 +303,6 @@ class Git2OSCMixer(object):
         self._git._config['patches-dir'] = patches_dir  # Not good.
 
         patches = self._git.make_patches(repo, tag='vTest')
-        self._git.gen_changelog(repo, patches)
 
 
 class SpecProcess(object):
@@ -313,11 +312,16 @@ class SpecProcess(object):
     '''
     TAG = 'osc-gitpak'
 
-    def __init__(self, spec_path, log):
-        self._spec_path = spec_path
+    def __init__(self, config, log):
+        self._config = config
+        self._spec_path = config['spec']
+        self._spec_changelog = os.path.join(os.path.dirname(self._spec_path),
+                                            os.path.basename(self._spec_path).split(".")[0] + ".changes")
+        if not os.path.exists(self._spec_changelog):
+            raise FileNotFoundError('Pak: Changelog "{0}" was not found.'.format(self._spec_changelog))
         self.log = log
         self._spec = spec.Spec.from_file(self._spec_path)
-        self._spec_src = open(spec_path).read().split(os.linesep)
+        self._spec_src = open(self._spec_path).read().split(os.linesep)
         self._patch_map = []
 
     def _get_patch_comment(self, patch_file):
