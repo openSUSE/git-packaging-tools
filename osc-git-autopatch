@@ -93,7 +93,6 @@ class Git2OSCMixer(object):
     '''
     Scenario processor.
     '''
-    TAG = 'osc-gitpak'
     def __init__(self, config):
         self._scenario = config
         self._git = GitProcess(self._scenario.get('git'),
@@ -120,12 +119,12 @@ class Git2OSCMixer(object):
 
         out = []
         for block, directive in blockset:
-            _data = data.split('# @@ osc-gitpak: {0} >>'.format(directive))
+            _data = data.split('# @@ {0}: {1} >>'.format(self._sp.TAG, directive))
             out.append(_data[0].strip())
             out.append('')
             out.append(block)
             out.append('')
-            out.append(_data[1].split('# @@ osc-gitpak: {0} <<'.format(directive))[-1].strip())
+            out.append(_data[1].split('# @@ {0}: {1} <<'.format(self._sp.TAG, directive))[-1].strip())
             data = os.linesep.join(out)
             out = []
 
@@ -139,7 +138,7 @@ class Git2OSCMixer(object):
         :param directive:
         :return:
         '''
-        snippet = ['# @@ osc-gitpak: {0} >>'.format(directive)]
+        snippet = ['# @@ {0}: {1} >>'.format(self._sp.TAG, directive)]
 
         if directive == 'patch.define':
             for p_idx, p_ref, p_file, p_doc, p_cond in self._sp.get_patch_map():
@@ -149,7 +148,7 @@ class Git2OSCMixer(object):
             for exc in self._sp.get_patch_executors():
                 snippet.append(exc)
 
-        snippet.append('# @@ osc-gitpak: {0} <<'.format(directive))
+        snippet.append('# @@ {0}: {1} <<'.format(self._sp.TAG, directive))
         return os.linesep.join(snippet)
 
     def __block_patch_apply(self):
@@ -194,7 +193,7 @@ class Git2OSCMixer(object):
         compat = 0
         for line in self._sp._spec_src:
             for directive in ['patch.apply', 'patch.define']:
-                directive = '@@ {0}: {1} '.format(self.TAG, directive)
+                directive = '@@ {0}: {1} '.format(self._sp.TAG, directive)
                 for block in ['>>', '<<']:
                     if directive + block in line:
                         compat += 1
@@ -311,6 +310,8 @@ class SpecProcess(object):
     Spec parsing, extracting objects etc.
 
     '''
+    TAG = 'osc-gitpak'
+
     def __init__(self, spec_path):
         self._spec_path = spec_path
         self._spec = spec.Spec.from_file(self._spec_path)
@@ -332,7 +333,7 @@ class SpecProcess(object):
             idx += 1
         for idx in reversed(range(idx)):
             line = self._spec_src[idx]
-            if line.startswith('#') and '@@ osc-gitpak' not in line:
+            if line.startswith('#') and '@@ {0}'.format(self.TAG) not in line:
                 comment.append(line)
             else:
                 break
@@ -581,18 +582,18 @@ class GitProcess(object):
 
         n_paths = []
         idx_file = open(os.path.join(self._config['patches-dir'], self.IDX_PATCHES_FILE), 'w')
-        idx_file.write('# @@ osc-gitpak: patch.define >>\n')
+        idx_file.write('# @@ {0}: patch.define >>\n'.format(SpecProcess.TAG))
         for commit_id, patch_pth in paths:
             idx, current_fname, new_fname = self._remove_filename_order(patch_pth)
             self._remove_body_order(current_fname, new_fname)
             idx_file.write('Patch{0: <10}{1}\n'.format(str(idx) + ':', os.path.basename(new_fname)))
             n_paths.append((commit_id, new_fname,))
-        idx_file.write('# @@ osc-gitpak: patch.define <<\n')
+        idx_file.write('# @@ {0}: patch.define <<\n'.format(SpecProcess.TAG))
         idx_file.write('# ---\n')
-        idx_file.write('# @@ osc-gitpak: patch.apply >>\n')
+        idx_file.write('# @@ {0}: patch.apply >>\n'.format(SpecProcess.TAG))
         for idx in range(len(paths)):
             idx_file.write('%patch{0} -p1\n'.format(idx + 1))
-        idx_file.write('# @@ osc-gitpak: patch.apply <<\n')
+        idx_file.write('# @@ {0}: patch.apply <<\n'.format(SpecProcess.TAG))
         idx_file.close()
 
         return n_paths
