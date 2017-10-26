@@ -217,7 +217,7 @@ class Git2OSCMixer(object):
         for patch_id, patchname in changed_patches:
             self.log.debug('Changed patch: "{0}"'.format(patchname))
         for patch_id, patchname in new_patches:
-            self._sp.add_patch(patchname, doc=None, condition=None)  # TODO: Get doc and conditions from the doc
+            self._sp.add_patch(patchname, doc=self._git.get_commit_message(patch_id), condition=None)  # TODO: Get doc and conditions from the doc
         for patch_id, patchname in removed_patches:
             self._sp.remove_patch(patchname)
 
@@ -704,6 +704,28 @@ class GitProcess(object):
 
         paths = self._pack_order(paths)  # Update names
         return paths
+
+    def get_commit_message(self, commit_id, repo=None):
+        '''
+        Get commit message by commit ID.
+
+        :param repo:
+        :param commit_id:
+        :return:
+        '''
+        message = None
+        repo = repo or self.clone()
+        for commit in repo.iter_commits():
+            if str(commit.hexsha) == commit_id:
+                message = commit.message
+                break
+
+        return os.linesep.join(textwrap.TextWrapper(initial_indent='',
+                                                    subsequent_indent='',
+                                                    break_on_hyphens=True,
+                                                    break_long_words=True,
+                                                    fix_sentence_endings=True,
+                                                    width=80).wrap(message))
 
     def gen_changelog(self, repo, patches):
         '''
