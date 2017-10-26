@@ -176,10 +176,10 @@ class Git2OSCMixer(object):
 
         :return:
         '''
-        for f_name in new + changed:
+        for c_id, f_name in new + changed:
             shutil.copy(os.path.join(self._git._config['patches-dir'], f_name),
                         os.path.abspath(os.path.dirname(self._sp._spec_path)))
-        for fname in removed:
+        for c_id, fname in removed:
             fname = os.path.join(os.path.dirname(self._sp._spec_path), fname)
             if os.path.exists(fname):
                 os.unlink(fname)
@@ -214,17 +214,57 @@ class Git2OSCMixer(object):
         self.log.debug('Found {0} new, {1} changed and {2} removed patches'.format(
             len(new_patches), len(changed_patches), len(removed_patches)))
 
-        for patchname in changed_patches:
+        for patch_id, patchname in changed_patches:
             self.log.debug('Changed patch: "{0}"'.format(patchname))
-        for patchname in new_patches:
+        for patch_id, patchname in new_patches:
             self._sp.add_patch(patchname, doc=None, condition=None)  # TODO: Get doc and conditions from the doc
-        for patchname in removed_patches:
+        for patch_id, patchname in removed_patches:
             self._sp.remove_patch(patchname)
 
         self.update_specfile(self._sp._spec_path,
                              ((self.__block_patch_define(), 'patch.define'),
                               (self.__block_patch_apply(), 'patch.apply'),))
         self.update_patch_files(new=new_patches, changed=changed_patches, removed=removed_patches)
+        self.add_changelog(self.generate_changelog_summary(new=new_patches,
+                                                           changed=changed_patches,
+                                                           removed=removed_patches))
+
+    def add_changelog(self, text):
+        '''
+        Generate changelog summary.
+
+        :param text:
+        :return:
+        '''
+        with open(self._sp._spec_changelog) as changelog:
+            changelog_contents = changelog.read()
+        with open(self._sp._spec_changelog, 'w') as changelog:
+            changelog.write('{0}\n'.format('-' * 67))
+            changelog.write('{0} - {1}\n\n'.format(datetime.datetime.utcnow().strftime('%a %b %d %T UTC %Y'),
+                                                   self._sp._config.get('author', 'package-bot@suse.com')))
+            changelog.write('{0}\n\n'.format(text.strip()))
+            changelog.write(changelog_contents)
+
+        self.log.debug('Pkg: added changelog summary to a "{0}" file'.format(self._sp._spec_changelog))
+
+    def generate_changelog_summary(self, new, changed, removed):
+        '''
+        Generate changelog summary.
+
+        :param new_patches:
+        :param changed_patches:
+        :param removed_patches:
+        :return:
+        '''
+        changelog = self._git.gen_changelog(repo=self._git.clone(), patches=new)
+        for patches, descr in [(new, 'Added'), (changed, 'Changed'), (removed, 'Removed')]:
+            if patches:
+                changelog.append('')
+                changelog.append('- {0}:'.format(descr))
+                for patch_id, patchname in patches:
+                    changelog.append('  * {0}'.format(patchname))
+        self.log.debug('Generated changelog summary')
+        return os.linesep.join(changelog)
 
     def _is_diff_patch(self, a_patch, b_patch, ignore_commit_id=True):
         '''
@@ -269,7 +309,7 @@ class Git2OSCMixer(object):
             fname = os.path.basename(p_path)
             if fname not in pkg_filenames:
                 self.log.debug('New patch detected: "{0}"'.format(fname))
-                n_pt.append(fname)
+                n_pt.append((c_id, fname,))
                 continue
             # Do diff check here
             git_patch = os.path.join(self._git._config['patches-dir'], fname)
@@ -281,14 +321,14 @@ class Git2OSCMixer(object):
                 pkg_p_patch = wtp.parse_patch(ph.read())
             if self._is_diff_patch(git_p_patch, pkg_p_patch):
                 self.log.debug('Changed patch detected: "{0}"'.format(fname))
-                c_pt.append(fname)
+                c_pt.append((c_id, fname,))
 
         git_filenames = [os.path.basename(p_set[1]) for p_set in git_patches]
         for p_set in pkg_patches:
             idx, ref, fname, doc, cond = p_set
             if fname not in git_filenames:
                 self.log.debug('Removed patch detected: "{0}"'.format(fname))
-                r_pt.append(fname)
+                r_pt.append((None, fname,))
 
         return n_pt, c_pt, r_pt
 
