@@ -77,6 +77,18 @@ CHANGES_FILE = 'patches.changes.txt'
 log = logging.getLogger('osc-gitpak')
 
 
+class SpecException(Exception):
+    '''
+    Spec Exception
+    '''
+
+
+class GitOpException(Exception):
+    '''
+    Exception on Git operation
+    '''
+
+
 class Git2OSCMixer(object):
     '''
     Scenario processor.
@@ -294,12 +306,6 @@ class Git2OSCMixer(object):
         self._git.gen_changelog(repo, patches)
 
 
-class SpecException(Exception):
-    '''
-    Spec Exception
-    '''
-
-
 class SpecProcess(object):
     '''
     Spec parsing, extracting objects etc.
@@ -421,10 +427,6 @@ class SpecProcess(object):
                 executors.append('%patch{0} -p1'.format(idx))
 
         return executors
-
-
-class GitOpException(Exception):
-    pass
 
 
 class GitProcess(object):
