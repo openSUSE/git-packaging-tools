@@ -48,6 +48,7 @@ import re
 import argparse
 import shutil
 import textwrap
+import logging
 
 try:
     import yaml
@@ -72,6 +73,8 @@ except ImportError as ex:
 
 ORDERING_FILE = 'patches.orders.txt'
 CHANGES_FILE = 'patches.changes.txt'
+
+log = logging.getLogger('osc-gitpak')
 
 
 class Git2OSCMixer(object):
@@ -158,7 +161,6 @@ class Git2OSCMixer(object):
 
         :return:
         '''
-        print(new, changed, removed)
         for f_name in new + changed:
             shutil.copy(os.path.join(self._git._config['patches-dir'], f_name),
                         os.path.abspath(os.path.dirname(self._sp._spec_path)))
@@ -166,6 +168,11 @@ class Git2OSCMixer(object):
             fname = os.path.join(os.path.dirname(self._sp._spec_path), fname)
             if os.path.exists(fname):
                 os.unlink(fname)
+
+        if new or changed:
+            log.debug('Moved {0} patch{1}'.format(len(new + changed), 'es' if len(changed + new) > 1 else ''))
+        if removed:
+            log.debug('Deleted {0} patch{1}'.format(len(removed), 'es' if len(removed) > 1 else ''))
 
     def check_spec_compat(self):
         '''
@@ -189,14 +196,22 @@ class Git2OSCMixer(object):
         if not self.check_spec_compat():
             raise Exception('Spec file is not compatible for this process.')
         new_patches, changed_patches, removed_patches = self.get_diff_patches()
+        log.debug('Found {0} new, {1} changed and {2} removed patches'.format(
+            len(new_patches), len(changed_patches), len(removed_patches)))
+
+        for patchname in changed_patches:
+            log.debug('Changed patch: "{0}"'.format(patchname))
         for patchname in new_patches:
             self._sp.add_patch(patchname, doc=None, condition=None)  # TODO: Get doc and conditions from the doc
+            log.debug('Added "{0}"'.format(patchname))
         for patchname in removed_patches:
             self._sp.remove_patch(patchname)
+            log.debug('Removed "{0}"'.format(patchname))
 
         self.update_specfile(self._sp._spec_path,
                              ((self.__block_patch_define(), 'patch.define'),
                               (self.__block_patch_apply(), 'patch.apply'),))
+        log.debug('Updated specfile with the new patch definitions')
         self.update_patch_files(new=new_patches, changed=changed_patches, removed=removed_patches)
 
     def _is_diff_patch(self, a_patch, b_patch, ignore_commit_id=True):
@@ -231,11 +246,17 @@ class Git2OSCMixer(object):
         pkg_patches = self._sp.get_patch_map()
         git_patches = self._git.get_patch_map()
 
+        log.debug('Found {0} patches defined in the "{1}" spec file'.format(
+            len(pkg_patches), self._sp._spec_path))
+        log.debug('Found {0} patches defined in the Git repository at "{1}" for "{2}" branch'.format(
+            len(git_patches), self._git._config['repo-full-path'], self._git._config['branch']))
+
         pkg_filenames = [p_set[2] for p_set in pkg_patches]
         for p_set in git_patches:
             c_id, p_path = p_set
             fname = os.path.basename(p_path)
             if fname not in pkg_filenames:
+                log.debug('New patch detected: "{0}"'.format(fname))
                 n_pt.append(fname)
                 continue
             # Do diff check here
@@ -247,12 +268,14 @@ class Git2OSCMixer(object):
             with open(pkg_patch) as ph:
                 pkg_p_patch = wtp.parse_patch(ph.read())
             if self._is_diff_patch(git_p_patch, pkg_p_patch):
+                log.debug('Changed patch detected: "{0}"'.format(fname))
                 c_pt.append(fname)
 
         git_filenames = [os.path.basename(p_set[1]) for p_set in git_patches]
         for p_set in pkg_patches:
             idx, ref, fname, doc, cond = p_set
             if fname not in git_filenames:
+                log.debug('Removed patch detected: "{0}"'.format(fname))
                 r_pt.append(fname)
 
         return n_pt, c_pt, r_pt
@@ -478,6 +501,7 @@ class GitProcess(object):
         '''
         for remote in repo.remotes:
             remote.fetch()
+            log.debug('Git repo fetched "{0}" remote'.format(remote.name))
 
     def _unique(self, fname):
         '''
@@ -602,9 +626,13 @@ class GitProcess(object):
             raise GitOpException('Tag needs to be specified till what to generate patches. '
                                  'Otherwise I will flood you!')
         repo = self.clone()
-        self.checkout(repo)
+        log.debug('Git repo initialized: "{0}"'.format(repo.git_dir))
         self.fetch(repo)
+        log.debug('Git repo fetched to {0} refs and {1} tags.'.format(len(repo.refs), len(repo.tags)))
+        self.checkout(repo)
+        log.debug('Git repo checked out: "{0}"'.format(repo.active_branch))
         self._patch_map = self.make_patches(repo, tag)
+        log.debug('Git repo found {0} patches from "{1}" tag'.format(len(self._patch_map), tag))
 
         return self._patch_map
 
@@ -930,7 +958,11 @@ def do_update_patches(args):
 
 def get_cli_params():
     parser = argparse.ArgumentParser(description='Git-based patch automation service for packages')
-    parser.add_argument('-r', '--repo', action='store', const=None,
+    parser.add_argument('-r', '--run', action='store_const', const=True,
+                        help='Perform the patching')
+    parser.add_argument('-q', '--quiet', action='store_const', const=True,
+                        help='Stay silent, no logging, no output.')
+    parser.add_argument('-g', '--repo', action='store', const=None,
                         help='Git repository to generate patches from')
     parser.add_argument('-f', '--format', action='store', const=None,
                         help='specify tag or range of commits for patches to be formatted')
@@ -946,16 +978,34 @@ def get_cli_params():
     return args, parser
 
 
+def setup_logger(args):
+    '''
+    Setup logger.
+
+    :param level:
+    :return:
+    '''
+    level = (args.debug and logging.DEBUG) or (not args.quiet and logging.INFO) or logging.NOTSET
+    channel = logging.StreamHandler(sys.stdout)
+    channel.setLevel(level)
+    channel.setFormatter(logging.Formatter('%(asctime)s %(name)s [%(levelname)s] - %(message)s'))
+    log.setLevel(level)
+    log.addHandler(channel)
+
+
 def main():
     '''
     Main app.
     '''
     VERSION = '0.1'
     args, parser = get_cli_params()
+    setup_logger(args)
     try:
+        log.info('Start')
         # Check environment
         for mod, mod_descr in [(yaml, 'YAML'), (wtp, 'Patch parser (whatthepatch)'),
                                (git, 'python-git (GitPython)')]:
+            log.debug('Checking for {0} module is installed'.format(mod_descr))
             if mod is None:
                 raise Exception("{0} module is not installed.".format(mod_descr))
 
@@ -963,15 +1013,24 @@ def main():
             print("Version: {0}".format(VERSION))
             sys.exit(1)
 
-        config = yaml.load(open(args.config or '_gitpak').read())
-        if not config:
+        if not args.run:
             parser.print_help()
+            sys.exit(1)
+
+        config_filename = args.config or '_gitpak'
+        log.debug('Looking for "{0}" config filename'.format(config_filename))
+        config = yaml.load(open(config_filename).read())
+        if not config:
+            log.debug('Config is empty. Exiting.')
+            parser.print_help()
+            sys.exit(1)
         else:
             mixer = Git2OSCMixer(config)
+            log.debug('Processing the package')
             mixer.process()
-
+        log.info('Finished')
     except Exception as ex:
-        print("Critical error:", ex, file=sys.stderr)
+        log.fatal("Critical error: {0}".format(ex))
         if args.debug:
             raise
 
