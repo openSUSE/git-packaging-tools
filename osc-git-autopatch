@@ -699,6 +699,10 @@ class GitProcess(object):
 
 
 def get_cli_params():
+    '''
+    Parse CLI parameters.
+    :return:
+    '''
     parser = argparse.ArgumentParser(description='Git-based patch automation service for packages')
     parser.add_argument('-r', '--run', action='store_const', const=True,
                         help='Perform the patching')
