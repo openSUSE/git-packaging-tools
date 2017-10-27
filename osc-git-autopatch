@@ -134,7 +134,7 @@ class Git2OSCMixer(object):
             data = os.linesep.join(out)
             out = []
 
-        fh = open(path + ".new", "w")
+        fh = open(path, "w")
         fh.write(data)
         fh.close()
         self.log.debug('Updated specfile with the new patch definitions')
