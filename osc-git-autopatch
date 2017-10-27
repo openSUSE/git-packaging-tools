@@ -109,13 +109,6 @@ class Git2OSCMixer(object):
                                flush_patches_dir=self._scenario.get('package', {}).get('flush-old-patches', False))
         self._sp = SpecProcess(self._scenario['package'], log=log)
 
-        self.DIRECTIVES = {
-            'patch': {
-                'apply': self.__block_patch_apply,
-                'define': self.__block_patch_define,
-            }
-        }
-
     def update_specfile(self, path, blockset):
         '''
         Replace block in the marked template.
