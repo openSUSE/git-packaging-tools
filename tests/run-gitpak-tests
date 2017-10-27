@@ -8,5 +8,5 @@ done
 rm -rf __pycache__
 for lnk in "gfp" "gpak"; do
     rm "$lnk.py" 2> /dev/null
-    rm "$lnk.pyc" 2> /dev/null
 done
+rm *.pyc 2> /dev/null
