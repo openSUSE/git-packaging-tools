@@ -827,14 +827,6 @@ def main():
     args, parser = get_cli_params()
     setup_logger(args)
     try:
-        log.info('Start')
-        # Check environment
-        for mod, mod_descr in [(yaml, 'YAML'), (wtp, 'Patch parser (whatthepatch)'),
-                               (git, 'python-git (GitPython)')]:
-            log.debug('Checking for {0} module is installed'.format(mod_descr))
-            if mod is None:
-                raise Exception("{0} module is not installed.".format(mod_descr))
-
         if args.version:
             print("Version: {0}".format(VERSION))
             sys.exit(1)
@@ -851,6 +843,14 @@ def main():
             parser.print_help()
             sys.exit(1)
         else:
+            log.info('Start')
+            # Check environment
+            for mod, mod_descr in [(yaml, 'YAML'), (wtp, 'Patch parser (whatthepatch)'),
+                                   (git, 'python-git (GitPython)')]:
+                log.debug('Checking for {0} module is installed'.format(mod_descr))
+                if mod is None:
+                    raise Exception("{0} module is not installed.".format(mod_descr))
+
             mixer = Git2OSCMixer(config, log)
             log.debug('Processing the package')
             mixer.process()
