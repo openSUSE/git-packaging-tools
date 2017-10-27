@@ -335,18 +335,6 @@ class Git2OSCMixer(object):
 
         return n_pt, c_pt, r_pt
 
-    def _process(self):
-        repo = self._git.clone()
-        self._git.fetch(repo)
-        self._git.checkout(repo)
-
-        patches_dir = os.path.join(self._scenario['git']['repo-full-path'], '.patches')
-        if not os.path.exists(patches_dir):
-            os.makedirs(patches_dir)
-        self._git._config['patches-dir'] = patches_dir  # Not good.
-
-        patches = self._git.make_patches(repo, tag='vTest')
-
 
 class SpecProcess(object):
     '''
