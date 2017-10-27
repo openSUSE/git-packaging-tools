@@ -468,6 +468,23 @@ class SpecProcess(object):
 
         return executors
 
+    def extract_message_conditions(self, text):
+        '''
+        Extracts, removes and separates RPM spec conditions from the text message.
+        Returns a tuple of (message-without-conditions, conditions).
+
+        :param text:
+        :return:
+        '''
+        msg = []
+        cnd = []
+        condition = '@@osc-pkg-cond:'
+        for line in text.split(os.linesep):
+            line = line.strip()
+            (cnd if condition in line else msg).append(line.replace(condition, '').strip())
+
+        return os.linesep.join(msg), os.linesep.join(cnd)
+
 
 class GitProcess(object):
     '''
