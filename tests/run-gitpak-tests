@@ -2,8 +2,9 @@
 
 ln -s ../git-format-pkg-patch gfp.py
 ln -s ../osc-git-autopatch gpak.py
+ln -s ../spec.py spec.py
 for fsrc in "test_gitpak_spec.py"; do
-    python3 -m pytest $fsrc
+    python3 -m pytest -s $fsrc
 done
 rm -rf __pycache__
 for lnk in "gfp" "gpak"; do
