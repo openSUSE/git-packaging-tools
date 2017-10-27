@@ -42,9 +42,17 @@
   4. Generate include message for .changes logfile
 '''
 
-import os
 import re
 import sys
+import os
+
+if sys.version_info.major < 3:
+    sys.stderr.write('ERROR: Your environment is setup for Python {0}.{1}.{2}.\n'
+                     '       This program requires Python at least 3.0.0 version.\n\n'.format(sys.version_info.major,
+                                                                                              sys.version_info.minor,
+                                                                                              sys.version_info.micro))
+    sys.exit(1)
+
 import shutil
 import logging
 import argparse
