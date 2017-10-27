@@ -139,7 +139,6 @@ class Git2OSCMixer(object):
         fh.close()
         self.log.debug('Updated specfile with the new patch definitions')
 
-
     def __block(self, directive):
         '''
         Get snippet of the block
