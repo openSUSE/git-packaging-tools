@@ -117,8 +117,11 @@ class Git2OSCMixer(object):
         :param directive:
         :return:
         '''
-        with open(path) as fh:
+        previous_spec_path = path + '.previous'
+        shutil.copy(path, previous_spec_path)
+        with open(previous_spec_path) as fh:
             data = fh.read()
+        os.unlink(path)
 
         out = []
         for block, directive in blockset:
