@@ -216,21 +216,27 @@ class Git2OSCMixer(object):
         new_patches, changed_patches, removed_patches = self.get_diff_patches()
         self.log.debug('Found {0} new, {1} changed and {2} removed patches'.format(
             len(new_patches), len(changed_patches), len(removed_patches)))
+        if not (new_patches + changed_patches + removed_patches):
+            self.log.info('Could not find any new, changed or removed patches. Nothing needs to be done. Exiting.')
+        else:
+            for patch_id, patchname in changed_patches:
+                self.log.debug('Changed patch: "{0}"'.format(patchname))
+            for patch_id, patchname in new_patches:
+                doc, cnd = self._sp.extract_message_conditions(self._git.get_commit_message(patch_id))
+                self._sp.add_patch(patchname, doc=os.linesep.join(textwrap.TextWrapper(initial_indent='', subsequent_indent='',
+                                                                                       break_on_hyphens=True, break_long_words=True,
+                                                                                       fix_sentence_endings=True, width=80).wrap(doc)),
+                                   condition=cnd)
+            for patch_id, patchname in removed_patches:
+                self._sp.remove_patch(patchname)
 
-        for patch_id, patchname in changed_patches:
-            self.log.debug('Changed patch: "{0}"'.format(patchname))
-        for patch_id, patchname in new_patches:
-            self._sp.add_patch(patchname, doc=self._git.get_commit_message(patch_id), condition=None)  # TODO: Get doc and conditions from the doc
-        for patch_id, patchname in removed_patches:
-            self._sp.remove_patch(patchname)
-
-        self.update_specfile(self._sp._spec_path,
-                             ((self.__block_patch_define(), 'patch.define'),
-                              (self.__block_patch_apply(), 'patch.apply'),))
-        self.update_patch_files(new=new_patches, changed=changed_patches, removed=removed_patches)
-        self.add_changelog(self.generate_changelog_summary(new=new_patches,
-                                                           changed=changed_patches,
-                                                           removed=removed_patches))
+            self.update_specfile(self._sp._spec_path,
+                                 ((self.__block_patch_define(), 'patch.define'),
+                                  (self.__block_patch_apply(), 'patch.apply'),))
+            self.update_patch_files(new=new_patches, changed=changed_patches, removed=removed_patches)
+            self.add_changelog(self.generate_changelog_summary(new=new_patches,
+                                                               changed=changed_patches,
+                                                               removed=removed_patches))
 
     def add_changelog(self, text):
         '''
@@ -483,7 +489,7 @@ class SpecProcess(object):
             line = line.strip()
             (cnd if condition in line else msg).append(line.replace(condition, '').strip())
 
-        return os.linesep.join(msg), os.linesep.join(cnd)
+        return os.linesep.join(msg) or None, os.linesep.join(cnd) or None
 
 
 class GitProcess(object):
@@ -728,12 +734,7 @@ class GitProcess(object):
                 message = commit.message
                 break
 
-        return os.linesep.join(textwrap.TextWrapper(initial_indent='',
-                                                    subsequent_indent='',
-                                                    break_on_hyphens=True,
-                                                    break_long_words=True,
-                                                    fix_sentence_endings=True,
-                                                    width=80).wrap(message))
+        return message
 
     def gen_changelog(self, repo, patches):
         '''
