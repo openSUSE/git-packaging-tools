@@ -3,11 +3,14 @@
 ln -s ../git-format-pkg-patch gfp.py
 ln -s ../osc-git-autopatch gpak.py
 ln -s ../spec.py spec.py
-for fsrc in "test_gitpak_spec.py"; do
+
+#tests=$(ls test*py)
+tests="test_gitpak_spec.py"
+for fsrc in $tests; do
     python3 -m pytest -s $fsrc
 done
 rm -rf __pycache__
-for lnk in "gfp" "gpak"; do
+for lnk in "gfp" "gpak" "spec"; do
     rm "$lnk.py" 2> /dev/null
 done
 rm *.pyc 2> /dev/null
