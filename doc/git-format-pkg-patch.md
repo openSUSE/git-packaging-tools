@@ -73,7 +73,7 @@ patches are going to be created.
 - Create patches against a tag `foo`, example:
 
 ```
-$ git-format-patch -f foo
+$ git-format-pkg-patch -f foo
 ```
 
 - In the file `patches.orders.txt` will be a reformatted list of
@@ -93,7 +93,7 @@ will be _only reported_ but will never be updated:
 
 ```
 $ cd /to/obs/project
-$ git-format-patch -u /path/to/your/patches
+$ git-format-pkg-patch -u /path/to/your/patches
 ```
 
 - **Option B**: Update the project with the set of patches including
@@ -102,7 +102,7 @@ add flag `-c`:
 
 ```
 $ cd /to/obs/project
-$ git-format-patch -u /path/to/your/patches -c
+$ git-format-pkg-patch -u /path/to/your/patches -c
 ```
 
 ### Remix spec file
@@ -136,8 +136,8 @@ That said in order to remix the ordering with the existing spec file,
 do the following:
 
 ```
-git-format-patch -s /path/to/project.spec \
-                 -o /path/to/patches.orders.txt > result.txt
+git-format-pkg-patch -s /path/to/project.spec \
+                     -o /path/to/patches.orders.txt > result.txt
 ```
 
 Although an actual patching directives are not processed and still
