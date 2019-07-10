@@ -85,7 +85,7 @@ def remove_order_from_subject(src_file, dst_file, use_unique=False):
     if os.path.exists(dst_file) and not use_unique:
         raise IOError('the file {0} exists'.format(dst_file))
 
-    if use_unique:
+    if os.path.exists(dst_file) and use_unique:
         dst_file = unique(dst_file)
     dst = open(dst_file, 'w')
     for fline in open(src_file).read().split(os.linesep):
