@@ -105,7 +105,7 @@ def git_format_patch(tag):
         if patch.split('.')[-1] == 'patch':
             patches += 1
 
-    print "Patches fetched: {0}".format(patches)
+    print("Patches fetched: {0}".format(patches))
 
 
 def get_diff_contents(data):
@@ -137,7 +137,7 @@ def unique(fname):
         chnk = fname[0].split('-')
         try:
             fname[0] = '{0}-{1}'.format('-'.join(chnk[:-1]), int(chnk[-1]) + 1)
-        except ValueError, err:
+        except ValueError as err:
             fname[0] = '{0}-{1}'.format(fname[0], 1)  # Filename is not in "str-int", but "str-str".
 
     return '.'.join(fname)
@@ -206,9 +206,9 @@ def do_remix_spec(args):
     patchset = extract_spec_source_patches(args.spec)
     for o_line in open(args.ordering).read().split(os.linesep):
         if re.match(r'^[Pp]atch[0-9]+:', o_line):
-            ref, pname = filter(None, o_line.split(' '))
-            print os.linesep.join(patchset.get(pname) or ['# Description N/A'])
-            print ref.ljust(15), pname
+            ref, pname = [_f for _f in o_line.split(' ') if _f]
+            print(os.linesep.join(patchset.get(pname) or ['# Description N/A']))
+            print(ref.ljust(15), pname)
 
 
 def do_create_patches(args):
@@ -219,13 +219,13 @@ def do_create_patches(args):
 
     if not args.existing:
         if os.listdir(current_dir):
-            print "Error: this directory has to be empty!"
+            print("Error: this directory has to be empty!")
             sys.exit(1)
 
         git_format_patch(args.format)
     else:
         if not [fname for fname in os.listdir(current_dir) if fname.endswith('.patch')]:
-            print "Error: can't find a single patch in {0} to work with!".format(current_dir)
+            print("Error: can't find a single patch in {0} to work with!".format(current_dir))
             sys.exit(1)
 
     ord_fh = open(args.ordering or ORDERING_FILE, 'w')
@@ -235,7 +235,7 @@ def do_create_patches(args):
     patches = 0
     for fname in os.listdir(current_dir):
         if fname.split('.')[-1] == 'patch':
-            print "Preparing", fname
+            print("Preparing", fname)
             order, nfname = remove_order(fname)
             if args.index is not None:
                 order += args.index
@@ -255,15 +255,15 @@ def do_create_patches(args):
 
     ord_fh.close()
 
-    print
-    print "Re-formatted {0} patch{1}".format(patches, patches > 1 and 'es' or '')
+    print()
+    print("Re-formatted {0} patch{1}".format(patches, patches > 1 and 'es' or ''))
 
 
 def do_update_patches(args):
     '''
     Update patches on the target package source.
     '''
-    print "Updating packages from {0} directory".format(args.update)
+    print("Updating packages from {0} directory".format(args.update))
     added = []
     removed = []
     changed = []
@@ -281,21 +281,21 @@ def do_update_patches(args):
                 current_patches[os.path.basename(fname)] = False
                 n_fname = os.path.basename(fname)
                 if not os.path.exists(n_fname):
-                    print "Adding {0} patch".format(fname)
+                    print("Adding {0} patch".format(fname))
                     shutil.copyfile(fname, os.path.join(os.path.abspath("."), n_fname))
                     added.append(n_fname)
                 else:
                     if get_diff_contents(open(fname).read()) != get_diff_contents(open(n_fname).read()):
                         if args.changed:
-                            print "Replacing {0} patch".format(n_fname)
+                            print("Replacing {0} patch".format(n_fname))
                             os.unlink(n_fname)
                             shutil.copyfile(fname, os.path.join(os.path.abspath("."), n_fname))
                             changed.append(n_fname)
                         else:
-                            print "WARNING: Patches {0} and {1} are different!".format(fname, n_fname)
+                            print("WARNING: Patches {0} and {1} are different!".format(fname, n_fname))
 
-    for fname in sorted([patch_name for patch_name, is_dead in current_patches.items() if is_dead]):
-        print "Removing {0} patch".format(fname)
+    for fname in sorted([patch_name for patch_name, is_dead in list(current_patches.items()) if is_dead]):
+        print("Removing {0} patch".format(fname))
         os.unlink(fname)
         removed.append(fname)
 
@@ -303,13 +303,13 @@ def do_update_patches(args):
     changes = open(CHANGES_FILE, "w")
     for title, data in [('Changed', changed), ('Added', added), ('Removed', removed)]:
         if not data: continue
-        print >> changes, "- {0}:".format(title)
+        print("- {0}:".format(title), file=changes)
         for fname in sorted(data):
-            print >> changes, "  * {0}".format(fname)
-        print >> changes
+            print("  * {0}".format(fname), file=changes)
+        print(file=changes)
 
     if not removed and not added and not changes:
-        print "No files has been changed"
+        print("No files has been changed")
 
     changes.close()
 
@@ -348,7 +348,7 @@ def main():
                 raise Exception('Value "{0}" should be a digit'.format(args.index))
 
         if args.version:
-            print "Version: {0}".format(VERSION)
+            print("Version: {0}".format(VERSION))
         elif args.spec:
             do_remix_spec(args)
         elif args.update and not args.format:
@@ -359,7 +359,7 @@ def main():
             parser.print_help()
             sys.exit(1)
     except Exception as ex:
-        print >> sys.stderr, "Critical error:", ex
+        print("Critical error:", ex, file=sys.stderr)
 
 if __name__ == '__main__':
     main()
