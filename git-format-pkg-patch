@@ -255,8 +255,7 @@ def do_create_patches(args):
 
     ord_fh.close()
 
-    print()
-    print("Re-formatted {0} patch{1}".format(patches, patches > 1 and 'es' or ''))
+    print("\nRe-formatted {0} patch{1}".format(patches, patches > 1 and 'es' or ''))
 
 
 def do_update_patches(args):
