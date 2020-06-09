@@ -235,7 +235,7 @@ def do_create_patches(args):
     patches = 0
     for fname in os.listdir(current_dir):
         if fname.split('.')[-1] == 'patch':
-            print("Preparing", fname)
+            print("Preparing {}".format(fname))
             order, nfname = remove_order(fname)
             if args.index is not None:
                 order += args.index
