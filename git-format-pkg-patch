@@ -53,6 +53,7 @@ import shutil
 
 ORDERING_FILE = 'patches.orders.txt'
 CHANGES_FILE = 'patches.changes.txt'
+SKIP_TAG = '[skip]'
 
 
 def remove_order(filename):
@@ -244,6 +245,13 @@ def do_create_patches(args):
     patches = 0
     for fname in os.listdir(current_dir):
         if fname.split('.')[-1] == 'patch':
+            # Check if we should skip this patch in case subject starts with SKIP_TAG
+            with open(fname) as patch_file:
+                if any(re.match(r'Subject: \[PATCH.*] \{}'.format(SKIP_TAG), i) for i in patch_file.readlines()):
+                    print("Skipping {}".format(fname))
+                    os.unlink(fname)
+                    continue
+
             print("Preparing {}".format(fname))
             order, nfname = remove_order(fname)
             if args.index is not None:
