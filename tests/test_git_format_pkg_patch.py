@@ -112,16 +112,16 @@ index 0000000000..cb2a5974ff
         :return:
         '''
         fname = 'file.patch'
-        for iter in xrange(10):
+        for iter in range(10):
             fname = unique(fname)
             assert fname == 'file-{0}.patch'.format(iter + 1)
 
         fname = 'file-something.patch'
-        for iter in xrange(10):
+        for iter in range(10):
             fname = unique(fname)
             assert fname == 'file-something-{0}.patch'.format(iter + 1)
 
         fname = 'some-archive-here.tar.gz'
-        for iter in xrange(10):
+        for iter in range(10):
             fname = unique(fname)
             assert fname == 'some-archive-here-{0}.tar.gz'.format(iter + 1)

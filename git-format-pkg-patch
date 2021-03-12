@@ -4,29 +4,31 @@
 #
 # All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without modification,
-# are permitted provided that the following conditions are met:
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
 #
 # Redistributions of source code must retain the above copyright notice,
-# this list of conditions and the following disclaimer. Redistributions in binary
-# form must reproduce the above copyright notice, this list of conditions and the
-# following disclaimer in the documentation and/or other materials provided with
-# the distribution.
+# this list of conditions and the following disclaimer. Redistributions
+# in binary form must reproduce the above copyright notice, this list of
+# conditions and the following disclaimer in the documentation and/or
+# other materials provided with the distribution.
 #
-# Neither the name of the SUSE Linux Products GmbH nor the names of its contributors
-# may be used to endorse or promote products derived from this software without
-# specific prior written permission.
+# Neither the name of the SUSE Linux Products GmbH nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-# IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
-# INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
-# OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
-# OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
-# OF THE POSSIBILITY OF SUCH DAMAGE.
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 '''
  Author: Bo Maryniuk <bo@suse.de>
@@ -34,7 +36,7 @@
   This tool helps to:
   1. Format patches from Git the way it has a minimal impact on
      the changes in the future
- 
+
   2. Update patches to the current package source
 
   3. Detect content differences, if the filename is still the same
@@ -62,7 +64,8 @@ def remove_order(filename):
     '''
     ordnum = os.path.basename(filename).split('-')[0]
     if ordnum and not re.sub(r'[0-9]', '', ordnum):
-        filename = os.path.join(os.path.dirname(filename), filename.split('-', 1)[-1]).lower()
+        filename = os.path.join(os.path.dirname(filename),
+                                filename.split('-', 1)[-1]).lower()
         ordnum = int(ordnum)
     else:
         ordnum = None
@@ -77,9 +80,9 @@ def remove_order_from_subject(src_file, dst_file, use_unique=False):
     Git format patches inside with the following subject format:
     Subject: [PATCH X/Y] .........
 
-    This function removes [PATCH X/Y] part, if any. In Git format-patches one can
-    add "-N" flag, so then subject won't have these numbers, but just "[PATCH]".
-    In this case we leave it out.
+    This function removes [PATCH X/Y] part, if any. In Git
+    format-patches one can add "-N" flag, so then subject won't have
+    these numbers, but just "[PATCH]". In this case we leave it out.
     '''
 
     if os.path.exists(dst_file) and not use_unique:
@@ -101,7 +104,8 @@ def git_format_patch(tag):
     Formats patches from the given tag.
     '''
     patches = 0
-    for patch in os.popen('git format-patch {0}'.format(tag)).read().split(os.linesep):
+    for patch in os.popen(
+            'git format-patch {0}'.format(tag)).read().split(os.linesep):
         if patch.split('.')[-1] == 'patch':
             patches += 1
 
@@ -137,16 +141,18 @@ def unique(fname):
         chnk = fname[0].split('-')
         try:
             fname[0] = '{0}-{1}'.format('-'.join(chnk[:-1]), int(chnk[-1]) + 1)
-        except ValueError as err:
-            fname[0] = '{0}-{1}'.format(fname[0], 1)  # Filename is not in "str-int", but "str-str".
+        except ValueError:
+            # Filename is not in "str-int", but "str-str".
+            fname[0] = '{0}-{1}'.format(fname[0], 1)
 
     return '.'.join(fname)
 
 
 def extract_spec_source_patches(specfile):
     '''
-    Extracts source patches from the .spec file to match existing comments,
-    according to the https://en.opensuse.org/openSUSE:Packaging_Patches_guidelines
+    Extracts source patches from the .spec file to match existing
+    comments, according to the
+    https://en.opensuse.org/openSUSE:Packaging_Patches_guidelines
 
     :param: specfile
     :return:
@@ -159,7 +165,10 @@ def extract_spec_source_patches(specfile):
         if re.match(r'^[Pp]atch[0-9]+:', spec_line) and not patch_sec_start:
             patch_sec_start = True
 
-        if not spec_line.startswith('#') and not re.match(r'^[Pp]atch[0-9]+:', spec_line) and patch_sec_start and not patch_sec_end:
+        if not spec_line.startswith('#') and \
+                not re.match(r'^[Pp]atch[0-9]+:', spec_line) and \
+                patch_sec_start and \
+                not patch_sec_end:
             patch_sec_end = True
 
         if not patch_sec_start and not patch_sec_end:
@@ -299,18 +308,18 @@ def do_update_patches(args):
         removed.append(fname)
 
     # Generate an include for spec changes
-    changes = open(CHANGES_FILE, "w")
-    for title, data in [('Changed', changed), ('Added', added), ('Removed', removed)]:
-        if not data: continue
-        print("- {0}:".format(title), file=changes)
-        for fname in sorted(data):
-            print("  * {0}".format(fname), file=changes)
-        print(file=changes)
+    with open(CHANGES_FILE, "w") as changes:
+        for title, data in [('Changed', changed), ('Added', added),
+                            ('Removed', removed)]:
+            if not data:
+                continue
+            print("- {}:".format(title), file=changes)
+            for fname in sorted(data):
+                print("  * {}".format(fname), file=changes)
+            print(file=changes)
 
-    if not removed and not added and not changes:
-        print("No files has been changed")
-
-    changes.close()
+        if not removed and not added and not changes:
+            print("No files has been changed")
 
 
 def main():
@@ -343,7 +352,7 @@ def main():
         if args.index:
             try:
                 args.index = int(args.index)
-            except ValueError as ex:
+            except ValueError:
                 raise Exception('Value "{0}" should be a digit'.format(args.index))
 
         if args.version:
@@ -359,6 +368,7 @@ def main():
             sys.exit(1)
     except Exception as ex:
         print("Critical error:", ex, file=sys.stderr)
+
 
 if __name__ == '__main__':
     main()
