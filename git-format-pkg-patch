@@ -53,7 +53,6 @@ import shutil
 
 ORDERING_FILE = 'patches.orders.txt'
 CHANGES_FILE = 'patches.changes.txt'
-SKIP_TAG = '[skip]'
 
 
 def remove_order(filename):
@@ -247,7 +246,7 @@ def do_create_patches(args):
         if fname.split('.')[-1] == 'patch':
             # Check if we should skip this patch in case subject starts with SKIP_TAG
             with open(fname) as patch_file:
-                if any(re.match(r'Subject: \[PATCH.*] \{}'.format(SKIP_TAG), i) for i in patch_file.readlines()):
+                if any(re.match(r'^Subject: \[PATCH.*] {}'.format(re.escape(args.skip_tag)), i) for i in patch_file.readlines()):
                     print("Skipping {}".format(fname))
                     os.unlink(fname)
                     continue
@@ -352,6 +351,8 @@ def main():
                         help='update also changed files with the content')
     parser.add_argument('-e', '--existing', action='store_const', const=True,
                         help='work with already formatted patches from Git')
+    parser.add_argument('-k', '--skip-tag', action='store', const=None, default='[skip]',
+                        help='skip commits starting with this tag. Default: [skip]')
     parser.add_argument('-v', '--version', action='store_const', const=True,
                         help='show version')
     args = parser.parse_args()
