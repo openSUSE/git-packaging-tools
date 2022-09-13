@@ -91,13 +91,14 @@ def remove_order_from_subject(src_file, dst_file, use_unique=False):
 
     if os.path.exists(dst_file) and use_unique:
         dst_file = unique(dst_file)
-    dst = open(dst_file, "w")
-    for fline in open(src_file).read().split(os.linesep):
-        fline_tk = re.split(r"\s+\[PATCH \d+/\d+\]\s+", fline)
-        if len(fline_tk) == 2 and fline_tk[0] == "Subject:":
-            fline = " [PATCH] ".join(fline_tk)
-        dst.write("{0}\n".format(fline))
-    dst.close()
+    with open(dst_file, "w", encoding="utf-8", errors="surrogateescape") as dst, open(
+        src_file, encoding="utf-8", errors="surrogateescape"
+    ) as src:
+        for line in src:
+            line_tk = re.split(r"\s+\[PATCH \d+/\d+\]\s+", line)
+            if len(line_tk) == 2 and line_tk[0] == "Subject:":
+                line = " [PATCH] ".join(line_tk)
+            dst.write("{0}".format(line))
 
 
 def git_format_patch(tag):
@@ -257,7 +258,7 @@ def do_create_patches(args):
     for fname in os.listdir(current_dir):
         if fname.split(".")[-1] == "patch":
             # Check if we should skip this patch in case subject starts with SKIP_TAG
-            with open(fname) as patch_file:
+            with open(fname, encoding="utf-8", errors="surrogatereplace") as patch_file:
                 if any(
                     re.match(
                         r"^Subject: \[PATCH.*] {}".format(re.escape(args.skip_tag)), i
@@ -321,22 +322,27 @@ def do_update_patches(args):
                     shutil.copyfile(fname, os.path.join(os.path.abspath("."), n_fname))
                     added.append(n_fname)
                 else:
-                    if get_diff_contents(open(fname).read()) != get_diff_contents(
-                        open(n_fname).read()
-                    ):
-                        if args.changed:
-                            print("Replacing {0} patch".format(n_fname))
-                            os.unlink(n_fname)
-                            shutil.copyfile(
-                                fname, os.path.join(os.path.abspath("."), n_fname)
-                            )
-                            changed.append(n_fname)
-                        else:
-                            print(
-                                "WARNING: Patches {0} and {1} are different!".format(
-                                    fname, n_fname
+                    with open(
+                        fname, encoding="utf-8", errors="surrogateescape"
+                    ) as updated_patch, open(
+                        n_fname, encoding="utf-8", errors="surrogateescape"
+                    ) as existing_patch:
+                        if get_diff_contents(updated_patch.read()) != get_diff_contents(
+                            existing_patch.read()
+                        ):
+                            if args.changed:
+                                print("Replacing {0} patch".format(n_fname))
+                                os.unlink(n_fname)
+                                shutil.copyfile(
+                                    fname, os.path.join(os.path.abspath("."), n_fname)
                                 )
-                            )
+                                changed.append(n_fname)
+                            else:
+                                print(
+                                    "WARNING: Patches {0} and {1} are different!".format(
+                                        fname, n_fname
+                                    )
+                                )
 
     for fname in sorted(
         [patch_name for patch_name, is_dead in list(current_patches.items()) if is_dead]
