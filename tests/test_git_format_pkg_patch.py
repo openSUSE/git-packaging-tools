@@ -2,9 +2,10 @@ from gfp import get_diff_contents, unique
 
 
 class TestUtils(object):
-    '''
+    """
     Grouped tests for utility functions
-    '''
+    """
+
     diff_a = """
 From b338b21fe340ee4efa0045894315fcf20be1dc49 Mon Sep 17 00:00:00 2001
 From: Test <info@suse.com>
@@ -88,40 +89,46 @@ index 0000000000..cb2a5974ff
     """
 
     def test_get_diff_contents(self):
-        '''
+        """
         Test diff content extracted properly.
         :return:
-        '''
-        sample_content_a = [' LimitNOFILE=16384\n Type=simple\n ExecStart=/usr/bin/salt-master\n'
-                            '+TasksMax=infinity\n\n [Install]\n WantedBy=multi-user.target\n']
+        """
+        sample_content_a = [
+            " LimitNOFILE=16384\n Type=simple\n ExecStart=/usr/bin/salt-master\n"
+            "+TasksMax=infinity\n\n [Install]\n WantedBy=multi-user.target\n"
+        ]
         assert get_diff_contents(self.diff_a) == sample_content_a
 
-        sample_content_b = [' After=network.target\n\n [Service]\n-Type=notify\n-NotifyAccess=all'
-                            '\n+User=salt\n+Type=simple\n LimitNOFILE=8192\n ExecStart=/usr/bin/salt-api'
-                            '\n TimeoutStopSec=3\n']
+        sample_content_b = [
+            " After=network.target\n\n [Service]\n-Type=notify\n-NotifyAccess=all"
+            "\n+User=salt\n+Type=simple\n LimitNOFILE=8192\n ExecStart=/usr/bin/salt-api"
+            "\n TimeoutStopSec=3\n"
+        ]
         assert get_diff_contents(self.diff_b) == sample_content_b
 
-        sample_content_c = ['+============================\n+Salt 2016.11.3 Release Notes\n'
-                            '+============================\n+\n+Version 2016.11.3 is a bugfix release '
-                            'for :ref:`2016.11.0 <release-2016-11-0>`.\n']
+        sample_content_c = [
+            "+============================\n+Salt 2016.11.3 Release Notes\n"
+            "+============================\n+\n+Version 2016.11.3 is a bugfix release "
+            "for :ref:`2016.11.0 <release-2016-11-0>`.\n"
+        ]
         assert get_diff_contents(self.diff_c) == sample_content_c
 
     def test_make_unique_filename(self):
-        '''
+        """
         Test unique filename
         :return:
-        '''
-        fname = 'file.patch'
+        """
+        fname = "file.patch"
         for iter in range(10):
             fname = unique(fname)
-            assert fname == 'file-{0}.patch'.format(iter + 1)
+            assert fname == "file-{0}.patch".format(iter + 1)
 
-        fname = 'file-something.patch'
+        fname = "file-something.patch"
         for iter in range(10):
             fname = unique(fname)
-            assert fname == 'file-something-{0}.patch'.format(iter + 1)
+            assert fname == "file-something-{0}.patch".format(iter + 1)
 
-        fname = 'some-archive-here.tar.gz'
+        fname = "some-archive-here.tar.gz"
         for iter in range(10):
             fname = unique(fname)
-            assert fname == 'some-archive-here-{0}.tar.gz'.format(iter + 1)
+            assert fname == "some-archive-here-{0}.tar.gz".format(iter + 1)
