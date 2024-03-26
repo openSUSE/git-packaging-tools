@@ -44,15 +44,25 @@
   4. Generate include message for .changes logfile
 """
 
+from io import TextIOWrapper
 import os
 import sys
 import re
 import argparse
 import shutil
+import distro
+from collections import OrderedDict
+from typing import Any
 
 
 ORDERING_FILE = "patches.orders.txt"
 CHANGES_FILE = "patches.changes.txt"
+
+# Simplest detection if we are on Leap/SLES/RHEL or debian family. Add more IDs on demand.
+IS_DEB: bool = distro.id() in ["ubuntu", "debian", "linuxmint"] and bool(
+    shutil.which("dpkg")
+)
+IS_RPM: bool = not IS_DEB and bool(shutil.which("rpm"))
 
 
 def remove_order(filename):
@@ -74,7 +84,7 @@ def remove_order(filename):
     return ordnum, filename
 
 
-def remove_order_from_subject(src_file, dst_file, use_unique=False):
+def remove_order_from_subject(src_file, dst_file, use_unique=False) -> str:
     """
     Remove subject inside the patch.
 
@@ -84,6 +94,8 @@ def remove_order_from_subject(src_file, dst_file, use_unique=False):
     This function removes [PATCH X/Y] part, if any. In Git
     format-patches one can add "-N" flag, so then subject won't have
     these numbers, but just "[PATCH]". In this case we leave it out.
+
+    Returns final written filename.
     """
 
     if os.path.exists(dst_file) and not use_unique:
@@ -99,6 +111,8 @@ def remove_order_from_subject(src_file, dst_file, use_unique=False):
             if len(line_tk) == 2 and line_tk[0] == "Subject:":
                 line = " [PATCH] ".join(line_tk)
             dst.write("{0}".format(line))
+
+    return dst_file
 
 
 def git_format_patch(tag):
@@ -188,7 +202,7 @@ def extract_spec_source_patches(specfile):
             first_comment.append(head_line)
     patch_section.insert(0, os.linesep.join(first_comment))
 
-    patchset = {}
+    patchset: dict[str, list[Any]] = {}
     curr_key = None
     for line in reversed(patch_section):
         if re.match(r"^[Pp]atch[0-9]+:", line):
@@ -250,9 +264,11 @@ def do_create_patches(args):
             )
             sys.exit(1)
 
-    ord_fh = open(args.ordering or ORDERING_FILE, "w")
-    ord_fh.write("#\n#\n# This is pre-generated snippets of patch ordering\n#\n")
-    ord_patches_p = []
+    ord_fh: TextIOWrapper = open(args.ordering or ORDERING_FILE, "w")
+    ord_patches_p: OrderedDict[int, str] = OrderedDict()
+
+    if IS_RPM:
+        ord_fh.write("#\n#\n# This is pre-generated snippets of patch ordering\n#\n")
 
     patches = 0
     for fname in os.listdir(current_dir):
@@ -265,42 +281,49 @@ def do_create_patches(args):
                     )
                     for i in patch_file.readlines()
                 ):
-                    print("Skipping {}".format(fname))
+                    print(f"Skipping {fname}")
                     os.unlink(fname)
                     continue
 
-            print("Preparing {}".format(fname))
+            print(f"Preparing {fname}")
             order, nfname = remove_order(fname)
             if args.index is not None:
                 order += args.index
-            remove_order_from_subject(fname, nfname, use_unique=args.increment)
+            nfname = remove_order_from_subject(fname, nfname, use_unique=args.increment)
             os.unlink(fname)
-            ord_fh.write(
-                "{patch}{fname}\n".format(
-                    patch="Patch{0}:".format(order).ljust(15), fname=nfname
+            if IS_RPM:
+                ord_fh.write(
+                    "{patch}{fname}\n".format(
+                        patch=f"Patch{order}:".ljust(15), fname=nfname
+                    )
                 )
-            )
-            ord_patches_p.append(order)
+            ord_patches_p[order] = nfname
 
             patches += 1
 
     if ord_patches_p:
-        ord_fh.write("#\n#\n# Patch processing inclusion:\n")
-        for order in ord_patches_p:
-            ord_fh.write("%patch{num} -p1\n".format(num=order))
-    else:
-        ord_fh.write("# Nothing here, folks... :-(\n")
+        if IS_RPM:
+            ord_fh.write("#\n#\n# List of available patches:\n")
+        else:
+            ord_fh.write("#\n#\n# debian/series:\n")
 
+        for order, fname in ord_patches_p.items():
+            if IS_RPM:
+                ord_fh.write(f"%patch{order} -p1\n")
+            else:
+                ord_fh.write(f"{fname} -p1\n")
+    else:
+        ord_fh.write("# No patches found\n")
     ord_fh.close()
 
-    print("\nRe-formatted {0} patch{1}".format(patches, patches > 1 and "es" or ""))
+    print(f"\nRe-formatted {patches} patch{patches > 1 and 'es' or ''}")
 
 
 def do_update_patches(args):
     """
     Update patches on the target package source.
     """
-    print("Updating packages from {0} directory".format(args.update))
+    print(f"Updating packages from {args.update} directory")
     added = []
     removed = []
     changed = []
@@ -318,7 +341,7 @@ def do_update_patches(args):
                 current_patches[os.path.basename(fname)] = False
                 n_fname = os.path.basename(fname)
                 if not os.path.exists(n_fname):
-                    print("Adding {0} patch".format(fname))
+                    print(f"Adding {fname} patch")
                     shutil.copyfile(fname, os.path.join(os.path.abspath("."), n_fname))
                     added.append(n_fname)
                 else:
@@ -331,7 +354,7 @@ def do_update_patches(args):
                             existing_patch.read()
                         ):
                             if args.changed:
-                                print("Replacing {0} patch".format(n_fname))
+                                print(f"Replacing {n_fname} patch")
                                 os.unlink(n_fname)
                                 shutil.copyfile(
                                     fname, os.path.join(os.path.abspath("."), n_fname)
@@ -339,15 +362,13 @@ def do_update_patches(args):
                                 changed.append(n_fname)
                             else:
                                 print(
-                                    "WARNING: Patches {0} and {1} are different!".format(
-                                        fname, n_fname
-                                    )
+                                    f"WARNING: Patches {fname} and {n_fname} are different!"
                                 )
 
     for fname in sorted(
         [patch_name for patch_name, is_dead in list(current_patches.items()) if is_dead]
     ):
-        print("Removing {0} patch".format(fname))
+        print(f"Removing {fname} patch")
         os.unlink(fname)
         removed.append(fname)
 
@@ -360,9 +381,9 @@ def do_update_patches(args):
         ]:
             if not data:
                 continue
-            print("- {}:".format(title), file=changes)
+            print(f"- {title}:", file=changes)
             for fname in sorted(data):
-                print("  * {}".format(fname), file=changes)
+                print(f"  * {fname}", file=changes)
             print(file=changes)
 
         if not removed and not added and not changes:
@@ -373,7 +394,7 @@ def main():
     """
     Main app.
     """
-    VERSION = "0.2"
+    VERSION = "0.3"
     parser = argparse.ArgumentParser(description="Git patch formatter for RPM packages")
     parser.add_argument(
         "-u",
