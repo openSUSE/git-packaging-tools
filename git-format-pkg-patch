@@ -304,7 +304,7 @@ def do_create_patches(args):
             if IS_RPM:
                 ord_fh.write(f"%patch{order} -p1\n")
             else:
-                ord_fh.write(f"{fname} -p1")
+                ord_fh.write(f"{fname} -p1\n")
     else:
         ord_fh.write("# No patches found\n")
     ord_fh.close()
