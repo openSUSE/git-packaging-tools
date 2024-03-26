@@ -50,6 +50,7 @@ import re
 import argparse
 import shutil
 import distro
+from collections import OrderedDict
 from typing import Any
 
 
@@ -260,7 +261,7 @@ def do_create_patches(args):
 
     ord_fh = open(args.ordering or ORDERING_FILE, "w")
     ord_fh.write("#\n#\n# This is pre-generated snippets of patch ordering\n#\n")
-    ord_patches_p = []
+    ord_patches_p: OrderedDict[int, str] = OrderedDict()
 
     patches = 0
     for fname in os.listdir(current_dir):
@@ -293,12 +294,18 @@ def do_create_patches(args):
             patches += 1
 
     if ord_patches_p:
-        ord_fh.write("#\n#\n# Patch processing inclusion:\n")
-        for order in ord_patches_p:
-            ord_fh.write("%patch{num} -p1\n".format(num=order))
-    else:
-        ord_fh.write("# Nothing here, folks... :-(\n")
+        if IS_RPM:
+            ord_fh.write("#\n#\n# List of available patches:\n")
+        else:
+            ord_fh.write("#\n#\n# debian/series:\n")
 
+        for order, fname in ord_patches_p.items():
+            if IS_RPM:
+                ord_fh.write(f"%patch{order} -p1\n")
+            else:
+                ord_fh.write(f"{fname} -p1")
+    else:
+        ord_fh.write("# No patches found\n")
     ord_fh.close()
 
     print("\nRe-formatted {0} patch{1}".format(patches, patches > 1 and "es" or ""))
