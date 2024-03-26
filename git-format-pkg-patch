@@ -265,8 +265,10 @@ def do_create_patches(args):
             sys.exit(1)
 
     ord_fh: TextIOWrapper = open(args.ordering or ORDERING_FILE, "w")
-    ord_fh.write("#\n#\n# This is pre-generated snippets of patch ordering\n#\n")
     ord_patches_p: OrderedDict[int, str] = OrderedDict()
+
+    if IS_RPM:
+        ord_fh.write("#\n#\n# This is pre-generated snippets of patch ordering\n#\n")
 
     patches = 0
     for fname in os.listdir(current_dir):
@@ -289,11 +291,12 @@ def do_create_patches(args):
                 order += args.index
             remove_order_from_subject(fname, nfname, use_unique=args.increment)
             os.unlink(fname)
-            ord_fh.write(
-                "{patch}{fname}\n".format(
-                    patch=f"Patch{order}:".ljust(15), fname=nfname
+            if IS_RPM:
+                ord_fh.write(
+                    "{patch}{fname}\n".format(
+                        patch=f"Patch{order}:".ljust(15), fname=nfname
+                    )
                 )
-            )
             ord_patches_p[order] = fname
 
             patches += 1
