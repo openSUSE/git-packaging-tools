@@ -44,6 +44,7 @@
   4. Generate include message for .changes logfile
 """
 
+from io import TextIOWrapper
 import os
 import sys
 import re
@@ -259,7 +260,7 @@ def do_create_patches(args):
             )
             sys.exit(1)
 
-    ord_fh = open(args.ordering or ORDERING_FILE, "w")
+    ord_fh: TextIOWrapper = open(args.ordering or ORDERING_FILE, "w")
     ord_fh.write("#\n#\n# This is pre-generated snippets of patch ordering\n#\n")
     ord_patches_p: OrderedDict[int, str] = OrderedDict()
 
