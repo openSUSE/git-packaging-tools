@@ -20,6 +20,7 @@ dirname="git-packaging-tools-$(get_version)"
 cleanup $dirname
 mkdir $dirname
 cp git-format-pkg-patch $dirname
+cp doc/*.1 $dirname
 tar cvf - $dirname | gzip -9 > $(get_archive_name)
 rm -rf $dirname
 echo "Done"
