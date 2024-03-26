@@ -394,7 +394,7 @@ def main():
     """
     Main app.
     """
-    VERSION = "0.2"
+    VERSION = "0.3"
     parser = argparse.ArgumentParser(description="Git patch formatter for RPM packages")
     parser.add_argument(
         "-u",
