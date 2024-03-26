@@ -289,7 +289,7 @@ def do_create_patches(args):
             order, nfname = remove_order(fname)
             if args.index is not None:
                 order += args.index
-            remove_order_from_subject(fname, nfname, use_unique=args.increment)
+            nfname = remove_order_from_subject(fname, nfname, use_unique=args.increment)
             os.unlink(fname)
             if IS_RPM:
                 ord_fh.write(
@@ -297,7 +297,7 @@ def do_create_patches(args):
                         patch=f"Patch{order}:".ljust(15), fname=nfname
                     )
                 )
-            ord_patches_p[order] = fname
+            ord_patches_p[order] = nfname
 
             patches += 1
 
