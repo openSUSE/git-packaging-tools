@@ -50,6 +50,7 @@ import re
 import argparse
 import shutil
 import distro
+from typing import Any
 
 
 ORDERING_FILE = "patches.orders.txt"
@@ -195,7 +196,7 @@ def extract_spec_source_patches(specfile):
             first_comment.append(head_line)
     patch_section.insert(0, os.linesep.join(first_comment))
 
-    patchset = {}
+    patchset: dict[str, list[Any]] = {}
     curr_key = None
     for line in reversed(patch_section):
         if re.match(r"^[Pp]atch[0-9]+:", line):
