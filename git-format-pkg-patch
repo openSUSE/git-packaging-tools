@@ -84,7 +84,7 @@ def remove_order(filename):
     return ordnum, filename
 
 
-def remove_order_from_subject(src_file, dst_file, use_unique=False):
+def remove_order_from_subject(src_file, dst_file, use_unique=False) -> str:
     """
     Remove subject inside the patch.
 
@@ -94,6 +94,8 @@ def remove_order_from_subject(src_file, dst_file, use_unique=False):
     This function removes [PATCH X/Y] part, if any. In Git
     format-patches one can add "-N" flag, so then subject won't have
     these numbers, but just "[PATCH]". In this case we leave it out.
+
+    Returns final written filename.
     """
 
     if os.path.exists(dst_file) and not use_unique:
@@ -109,6 +111,8 @@ def remove_order_from_subject(src_file, dst_file, use_unique=False):
             if len(line_tk) == 2 and line_tk[0] == "Subject:":
                 line = " [PATCH] ".join(line_tk)
             dst.write("{0}".format(line))
+
+    return dst_file
 
 
 def git_format_patch(tag):
