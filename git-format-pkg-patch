@@ -49,10 +49,17 @@ import sys
 import re
 import argparse
 import shutil
+import distro
 
 
 ORDERING_FILE = "patches.orders.txt"
 CHANGES_FILE = "patches.changes.txt"
+
+# Simplest detection if we are on Leap/SLES/RHEL or debian family. Add more IDs on demand.
+IS_DEB: bool = distro.id() in ["ubuntu", "debian", "linuxmint"] and bool(
+    shutil.which("dpkg")
+)
+IS_RPM: bool = not IS_DEB and bool(shutil.which("rpm"))
 
 
 def remove_order(filename):
