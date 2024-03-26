@@ -274,11 +274,11 @@ def do_create_patches(args):
                     )
                     for i in patch_file.readlines()
                 ):
-                    print("Skipping {}".format(fname))
+                    print(f"Skipping {fname}")
                     os.unlink(fname)
                     continue
 
-            print("Preparing {}".format(fname))
+            print(f"Preparing {fname}")
             order, nfname = remove_order(fname)
             if args.index is not None:
                 order += args.index
@@ -286,10 +286,10 @@ def do_create_patches(args):
             os.unlink(fname)
             ord_fh.write(
                 "{patch}{fname}\n".format(
-                    patch="Patch{0}:".format(order).ljust(15), fname=nfname
+                    patch=f"Patch{order}:".ljust(15), fname=nfname
                 )
             )
-            ord_patches_p.append(order)
+            ord_patches_p[order] = fname
 
             patches += 1
 
@@ -308,14 +308,14 @@ def do_create_patches(args):
         ord_fh.write("# No patches found\n")
     ord_fh.close()
 
-    print("\nRe-formatted {0} patch{1}".format(patches, patches > 1 and "es" or ""))
+    print(f"\nRe-formatted {patches} patch{patches > 1 and 'es' or ''}")
 
 
 def do_update_patches(args):
     """
     Update patches on the target package source.
     """
-    print("Updating packages from {0} directory".format(args.update))
+    print(f"Updating packages from {args.update} directory")
     added = []
     removed = []
     changed = []
@@ -333,7 +333,7 @@ def do_update_patches(args):
                 current_patches[os.path.basename(fname)] = False
                 n_fname = os.path.basename(fname)
                 if not os.path.exists(n_fname):
-                    print("Adding {0} patch".format(fname))
+                    print(f"Adding {fname} patch")
                     shutil.copyfile(fname, os.path.join(os.path.abspath("."), n_fname))
                     added.append(n_fname)
                 else:
@@ -346,7 +346,7 @@ def do_update_patches(args):
                             existing_patch.read()
                         ):
                             if args.changed:
-                                print("Replacing {0} patch".format(n_fname))
+                                print(f"Replacing {n_fname} patch")
                                 os.unlink(n_fname)
                                 shutil.copyfile(
                                     fname, os.path.join(os.path.abspath("."), n_fname)
@@ -354,15 +354,13 @@ def do_update_patches(args):
                                 changed.append(n_fname)
                             else:
                                 print(
-                                    "WARNING: Patches {0} and {1} are different!".format(
-                                        fname, n_fname
-                                    )
+                                    f"WARNING: Patches {fname} and {n_fname} are different!"
                                 )
 
     for fname in sorted(
         [patch_name for patch_name, is_dead in list(current_patches.items()) if is_dead]
     ):
-        print("Removing {0} patch".format(fname))
+        print(f"Removing {fname} patch")
         os.unlink(fname)
         removed.append(fname)
 
@@ -375,9 +373,9 @@ def do_update_patches(args):
         ]:
             if not data:
                 continue
-            print("- {}:".format(title), file=changes)
+            print(f"- {title}:", file=changes)
             for fname in sorted(data):
-                print("  * {}".format(fname), file=changes)
+                print(f"  * {fname}", file=changes)
             print(file=changes)
 
         if not removed and not added and not changes:
