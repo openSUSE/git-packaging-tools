@@ -31,17 +31,17 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 """
- Author: Bo Maryniuk <bo@suse.de>
+Author: Bo Maryniuk <bo@suse.de>
 
-  This tool helps to:
-  1. Format patches from Git the way it has a minimal impact on
-     the changes in the future
+ This tool helps to:
+ 1. Format patches from Git the way it has a minimal impact on
+    the changes in the future
 
-  2. Update patches to the current package source
+ 2. Update patches to the current package source
 
-  3. Detect content differences, if the filename is still the same
+ 3. Detect content differences, if the filename is still the same
 
-  4. Generate include message for .changes logfile
+ 4. Generate include message for .changes logfile
 """
 
 from io import TextIOWrapper
